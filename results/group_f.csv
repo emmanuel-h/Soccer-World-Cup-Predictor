@@ -1,7 +1,0 @@
-Group,Match,HomeTeam,AwayTeam,ExpGoalsHome,ExpGoalsAway,DefinitiveScore,P_Home,P_Draw,P_Away,Prediction
-Group F,1,Netherlands,Japan,1.20,1.72,1-2,23.9,29.3,46.8,Japan WIN
-Group F,2,Netherlands,Sweden,2.27,1.24,2-1,58.5,23.7,17.7,Netherlands WIN
-Group F,3,Netherlands,Tunisia,1.24,1.02,1-1,37.9,35.0,27.1,DRAW
-Group F,4,Japan,Sweden,2.36,0.90,2-0,67.9,21.5,10.6,Japan WIN
-Group F,5,Japan,Tunisia,1.29,0.74,1-0,46.4,35.3,18.3,Japan WIN
-Group F,6,Sweden,Tunisia,0.93,1.41,0-1,21.7,33.4,44.9,Tunisia WIN

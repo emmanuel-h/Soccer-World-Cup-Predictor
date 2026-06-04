@@ -1,7 +1,0 @@
-Group,Match,HomeTeam,AwayTeam,ExpGoalsHome,ExpGoalsAway,DefinitiveScore,P_Home,P_Draw,P_Away,Prediction
-Group L,1,England,Croatia,1.62,0.83,2-0,53.3,30.5,16.1,England WIN
-Group L,2,England,Ghana,1.85,0.60,2-0,64.9,26.1,9.0,England WIN
-Group L,3,England,Panama,2.05,0.73,2-0,66.0,24.2,9.8,England WIN
-Group L,4,Croatia,Ghana,1.55,1.00,2-0,47.2,31.5,21.3,Croatia WIN
-Group L,5,Croatia,Panama,1.73,1.20,2-1,47.0,29.2,23.8,Croatia WIN
-Group L,6,Ghana,Panama,1.26,1.37,1-1,31.4,32.4,36.3,DRAW
