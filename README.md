@@ -3,6 +3,12 @@
 Predicts World Cup 2026 group-stage results using historical international
 football data and a three-layer statistical model.
 
+## Prerequisites
+
+- **Python 3.10 or later** (uses the `X | Y` union type syntax)
+- **No third-party libraries** — standard library only
+- **Internet access** — match data is fetched from GitHub on each run
+
 ## Usage
 
 Pass the group's teams as positional arguments:
@@ -12,8 +18,7 @@ python3 predictor.py "Brazil" "Argentina" "France" "Germany"
 ```
 
 Any number of teams ≥ 2 is accepted. All round-robin fixtures are generated
-automatically. No dependencies beyond the Python standard library. Data is
-fetched automatically from GitHub on each run.
+automatically. Data is fetched automatically from GitHub on each run.
 
 ---
 
@@ -147,8 +152,24 @@ each team finishes top-2 becomes its *advancement probability* (Adv%).
 
 ## Team name spelling
 
-Team names must match the spelling used in the dataset. When in doubt, check
-`results.csv` or the FIFA country codes reference on Wikipedia.
+All 48 WC 2026 teams are listed in [`teams.txt`](teams.txt) with their exact
+spelling. The script validates names against that file before running and
+suggests corrections for typos:
+
+```
+Unknown team: 'Argentin'  —  did you mean: Argentina?
+```
+
+Copy-paste names from `teams.txt` to avoid issues with spaces and dashes
+(e.g. `"South Korea"`, `"Ivory Coast"`, `"United States"`).
+
+## Tests
+
+The test suite covers all pure functions and requires no network access:
+
+```bash
+python3 -m unittest test_predictor -v
+```
 
 ---
 

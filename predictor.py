@@ -5,7 +5,7 @@ Models: exponential time-decay · Dixon-Coles correction · Bayesian MC
 Data  : https://github.com/martj42/international_results  (CC0)
 """
 
-import argparse, csv, io, itertools, math, random, urllib.request
+import argparse, csv, difflib, io, itertools, math, pathlib, random, sys, urllib.request
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -385,6 +385,31 @@ def parse_args():
     return args
 
 
+def load_known_teams() -> list[str]:
+    path = pathlib.Path(__file__).parent / "teams.txt"
+    teams = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            teams.append(line)
+    return teams
+
+
+def check_teams(teams: list[str], known: list[str]):
+    known_set = set(known)
+    unknown = [t for t in teams if t not in known_set]
+    if not unknown:
+        return
+    for t in unknown:
+        suggestions = difflib.get_close_matches(t, known, n=3, cutoff=0.6)
+        msg = f"Unknown team: '{t}'"
+        if suggestions:
+            msg += f"  —  did you mean: {', '.join(suggestions)}?"
+        print(msg, file=sys.stderr)
+    print(f"\nSee teams.txt for the full list of valid team names.", file=sys.stderr)
+    sys.exit(1)
+
+
 def generate_fixtures(teams: list[str]) -> list[tuple]:
     return [(t1, t2, f"Match {i}") for i, (t1, t2) in
             enumerate(itertools.combinations(teams, 2), 1)]
@@ -393,6 +418,7 @@ def generate_fixtures(teams: list[str]) -> list[tuple]:
 def main():
     args  = parse_args()
     teams = args.teams
+    check_teams(teams, load_known_teams())
     fixtures = generate_fixtures(teams)
 
     print(f"\n{BAR}")
