@@ -20,6 +20,27 @@ python3 predictor.py "Brazil" "Argentina" "France" "Germany"
 Any number of teams ≥ 2 is accepted. All round-robin fixtures are generated
 automatically. Data is fetched automatically from GitHub on each run.
 
+### Output formats
+
+Use `--output-format` (comma-separated) and `--output-dir` to control what
+gets written:
+
+```bash
+# CSV only (default)
+python3 predictor.py --output-format csv --output-dir results --group "Group A" \
+    Mexico "South Africa" "South Korea" "Czech Republic"
+
+# All three formats at once
+python3 predictor.py --output-format csv,json,mpp --output-dir results --group "Group A" \
+    Mexico "South Africa" "South Korea" "Czech Republic"
+```
+
+| Format | File | Contents |
+|---|---|---|
+| `csv` | `group_a.csv` | Match predictions, expected goals, probabilities |
+| `json` | `group_a.json` | Same as CSV but as a JSON array |
+| `mpp` | `group_a_mpp.json` | Minimal payload ready for `mpp_push.py` |
+
 ### Run all groups at once
 
 ```bash
@@ -27,12 +48,73 @@ bash run_all_groups.sh
 ```
 
 Reads every file in `group_stage/`, runs the predictor for each group, and
-writes one CSV per group to `results/group_<X>.csv`.
+writes outputs to `results/`. The default formats are `csv,json,mpp`; override
+with the `OUTPUT_FORMAT` environment variable:
 
-Each CSV has the columns:
-`Group, Match, HomeTeam, AwayTeam, ExpGoalsHome, ExpGoalsAway, DefinitiveScore, P_Home, P_Draw, P_Away, Prediction`
+```bash
+OUTPUT_FORMAT=csv bash run_all_groups.sh
+```
 
 Pre-computed results for WC 2026 are already committed under [`results/`](results/).
+
+---
+
+## Pushing predictions to Mon Petit Prono (MPP)
+
+`mpp_push.py` reads the MPP-format JSON files produced above and submits them
+to your [mpp.football](https://mpp.football) account via the private API.
+
+### First-time setup
+
+1. Log in at [mpp.football](https://mpp.football) in your browser.
+2. Open DevTools → Application → Local Storage → `https://mpp.football`.
+3. Find the Auth0 key containing `refresh_token` and copy its value.
+4. Run the push script — it will prompt for the token and cache it in
+   `.mpp_tokens.json` (gitignored):
+
+```bash
+python3 mpp_push.py results/all_groups_mpp.json --championship-id 8
+```
+
+The token file is updated automatically on every run (Auth0 rotates tokens).
+
+### Typical workflow
+
+```bash
+# 1. Generate all group predictions including MPP payloads
+bash run_all_groups.sh
+
+# 2. Combine into one file
+python3 -c "
+import json, pathlib
+preds = []
+for f in sorted(pathlib.Path('results').glob('group_*_mpp.json')):
+    preds.extend(json.loads(f.read_text()))
+pathlib.Path('results/all_groups_mpp.json').write_text(
+    json.dumps(preds, indent=2, ensure_ascii=False))
+print(len(preds), 'predictions')
+"
+
+# 3. Find your championship ID
+python3 mpp_push.py --list-championships
+
+# 4. Dry run to preview the match mapping
+python3 mpp_push.py results/all_groups_mpp.json --championship-id 8 --dry-run
+
+# 5. Submit
+python3 mpp_push.py results/all_groups_mpp.json --championship-id 8
+```
+
+### Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--championship-id ID` | *(required)* | Use `--list-championships` to find it |
+| `--scope SCOPE` | `general` | `general` for global leaderboard; or a contest ID |
+| `--list-championships` | — | Print your active contests and exit |
+| `--dry-run` | — | Preview without submitting |
+| `--yes` / `-y` | — | Skip confirmation prompt |
+| `--token-file FILE` | `.mpp_tokens.json` | Path to the token cache file |
 
 ---
 
@@ -40,7 +122,7 @@ Pre-computed results for WC 2026 are already committed under [`results/`](result
 
 **[martj42/international_results](https://github.com/martj42/international_results)**
 — a community-maintained CSV of every international football match since 1872
-(~49 000 matches, updated regularly). Released under CC0 (public domain).
+(~49 300 matches, updated regularly). Released under CC0 (public domain).
 
 The script uses the last **20 years** of data per team.
 
