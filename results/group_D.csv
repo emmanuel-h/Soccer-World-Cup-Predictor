@@ -1,7 +1,7 @@
 Group,Match,HomeTeam,AwayTeam,ExpGoalsHome,ExpGoalsAway,DefinitiveScore,P_Home,P_Draw,P_Away,Prediction
-Group D,1,United States,Paraguay,1.71,0.74,1-0,60.0,23.2,16.8,United States WIN
-Group D,2,United States,Australia,1.17,1.43,0-1,31.1,25.6,43.2,Australia WIN
-Group D,3,United States,Turkey,1.86,1.51,2-1,46.5,21.3,32.2,United States WIN
-Group D,4,Paraguay,Australia,0.58,1.52,0-1,14.0,25.9,60.2,Australia WIN
-Group D,5,Paraguay,Turkey,0.92,1.60,0-1,22.8,24.1,53.1,Turkey WIN
-Group D,6,Australia,Turkey,1.79,1.09,2-1,53.7,22.0,24.2,Australia WIN
+Group D,1,United States,Paraguay,1.71,0.74,2-0,60.1,24.5,15.4,United States WIN
+Group D,2,United States,Australia,1.17,1.43,1-2,31.1,26.1,42.8,Australia WIN
+Group D,3,United States,Turkey,1.86,1.51,2-1,46.9,21.4,31.7,United States WIN
+Group D,4,Paraguay,Australia,0.58,1.52,0-1,13.5,26.1,60.4,Australia WIN
+Group D,5,Paraguay,Turkey,0.92,1.60,0-2,22.3,25.4,52.3,Turkey WIN
+Group D,6,Australia,Turkey,1.79,1.09,2-1,53.5,23.1,23.4,Australia WIN
