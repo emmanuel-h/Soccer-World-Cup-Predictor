@@ -55,7 +55,7 @@ with the `OUTPUT_FORMAT` environment variable:
 OUTPUT_FORMAT=csv bash run_all_groups.sh
 ```
 
-Pre-computed results for WC 2026 are already committed under [`results/`](results/).
+Results are gitignored and must be regenerated locally (see workflow above).
 
 ---
 
@@ -252,6 +252,21 @@ each team finishes top-2 becomes its *advancement probability* (Adv%).
 | **σ (noise)** | Per-team strength uncertainty |
 
 ---
+
+## Group stage input files
+
+Each file in `group_stage/` lists one team per line (exact spelling from `teams.txt`):
+
+```
+Mexico
+South Africa
+South Korea
+Czech Republic
+```
+
+The filename (e.g. `group_A.txt`) is used to derive the `--group` label and output filename
+(e.g. `Group A` → `group_a.csv`). Add or edit these files to customise which groups are run
+by `run_all_groups.sh`.
 
 ## Team name spelling
 
