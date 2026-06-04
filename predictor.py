@@ -6,6 +6,7 @@ Data  : https://github.com/martj42/international_results  (CC0)
 """
 
 import argparse, csv, difflib, io, itertools, math, pathlib, random, sys, urllib.request
+from typing import Optional
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -371,6 +372,35 @@ def print_standings(ordered, pts, wins, drws, loss, gf, ga, adv_pct):
 
 # ── Entry point ────────────────────────────────────────────────────────────────
 
+def write_matches_csv(path: str, group: Optional[str], predictions: list[dict]):
+    """Append match prediction rows to a CSV file."""
+    file = pathlib.Path(path)
+    write_header = not file.exists() or file.stat().st_size == 0
+    with file.open("a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if write_header:
+            writer.writerow([
+                "Group", "Match", "HomeTeam", "AwayTeam",
+                "ExpGoalsHome", "ExpGoalsAway", "MostLikelyScore",
+                "P_Home", "P_Draw", "P_Away", "Prediction",
+            ])
+        for i, p in enumerate(predictions, 1):
+            hg, ag = p["dc_score"]
+            writer.writerow([
+                group or "",
+                i,
+                p["home"],
+                p["away"],
+                f"{p['lam_h']:.2f}",
+                f"{p['lam_a']:.2f}",
+                f"{hg}-{ag}",
+                f"{p['p_home']*100:.1f}",
+                f"{p['p_draw']*100:.1f}",
+                f"{p['p_away']*100:.1f}",
+                p["result"],
+            ])
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="World Cup 2026 Group Predictor",
@@ -379,6 +409,10 @@ def parse_args():
     )
     parser.add_argument("teams", nargs="+", metavar="TEAM",
                         help="Teams in the group (at least 2)")
+    parser.add_argument("--matches-csv", metavar="FILE",
+                        help="Append match predictions as CSV rows to FILE")
+    parser.add_argument("--group", metavar="NAME",
+                        help="Group label written into the CSV (e.g. 'Group A')")
     args = parser.parse_args()
     if len(args.teams) < 2:
         parser.error("Provide at least 2 teams.")
@@ -419,6 +453,8 @@ def main():
     args  = parse_args()
     teams = args.teams
     check_teams(teams, load_known_teams())
+    matches_csv = args.matches_csv
+    group_label = args.group
     fixtures = generate_fixtures(teams)
 
     print(f"\n{BAR}")
@@ -452,6 +488,10 @@ def main():
         p = predict(data, attack, defense, sigma, global_avg, home, away)
         predictions.append(p)
         print_match(p, label)
+
+    if matches_csv:
+        write_matches_csv(matches_csv, group_label, predictions)
+        print(f"\n  Match data written to {matches_csv}")
 
     # 4 ── group advancement
     print(f"\n[4/4] Simulating group advancement  ({N_GROUP_SIM:,} full-group runs) …")
