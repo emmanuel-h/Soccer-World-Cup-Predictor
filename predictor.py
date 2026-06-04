@@ -261,9 +261,10 @@ def predict(data, attack, defense, sigma, global_avg, home, away) -> dict:
 
     top5 = sorted(scorelines.items(), key=lambda x: -x[1])[:5]
 
-    if p_hw >= p_aw and p_hw >= p_dw:
+    # DC analytical probs (not MC) — MC soft-rejection never boosts tau>1 draws.
+    if p_h >= p_a and p_h >= p_d:
         outcome, result = "home", f"{home} WIN"
-    elif p_aw >= p_hw and p_aw >= p_dw:
+    elif p_a >= p_h and p_a >= p_d:
         outcome, result = "away", f"{away} WIN"
     else:
         outcome, result = "draw", "DRAW"
@@ -275,7 +276,7 @@ def predict(data, attack, defense, sigma, global_avg, home, away) -> dict:
         "lam_h": lam_h, "lam_a": lam_a,
         "dc_score": dc_score,
         "definitive_score": definitive_score,
-        "p_home": p_hw, "p_draw": p_dw, "p_away": p_aw,
+        "p_home": p_h, "p_draw": p_d, "p_away": p_a,
         "result": result,
         "top5": top5,
         "h2h": h2h_stats(data, home, away),
@@ -360,7 +361,7 @@ def print_match(p: dict, label: str):
     print(f"  Exp. goals (base)  : {p['lam_h']:.2f} – {p['lam_a']:.2f}"
           f"   σ = {p['sigma_home']:.2f} / {p['sigma_away']:.2f}")
     print(f"  Most-likely score  : {hg} – {ag}  (DC analytical, unconstrained)")
-    print(f"  Win probability    : {h} {_pct(p['p_home'])}  │"
+    print(f"  DC probability     : {h} {_pct(p['p_home'])}  │"
           f"  Draw {_pct(p['p_draw'])}  │  {a} {_pct(p['p_away'])}")
     print(f"  ► Prediction       : {p['result']}  →  {dhg} – {dag}")
 
