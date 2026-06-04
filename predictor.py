@@ -29,8 +29,8 @@ FIXTURES = [
 
 # Time-decay: half-life ≈ 2.4 years (exp(-0.0008 * 875) = 0.50)
 DECAY_LAMBDA   = 0.0008
-HISTORY_YEARS  = 12      # how far back to look
-H2H_YEARS      = 25      # head-to-head window
+HISTORY_YEARS  = 20      # how far back to look
+H2H_YEARS      = 20      # head-to-head window
 
 # Bayesian uncertainty: BASE_SIGMA at REF_N_EFF effective recent matches
 BASE_SIGMA     = 0.25
