@@ -4,5 +4,5 @@ __pycache__/
 *.pyo
 .env
 .mpp_tokens.json
-results/mpp_calendar_lookup.json
+results/*.json
 results/*.csv
