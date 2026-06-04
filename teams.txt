@@ -1,0 +1,78 @@
+# WC 2026 — Team names (exact spelling for the predictor)
+# Source: martj42/international_results dataset
+#
+# Tip: copy-paste names from this file to avoid typos.
+# Pay attention to spaces and dashes.
+
+## SOUTH AMERICA (CONMEBOL)
+Argentina
+Brazil
+Colombia
+Ecuador
+Paraguay
+Uruguay
+Venezuela
+
+## NORTH & CENTRAL AMERICA + CARIBBEAN (CONCACAF)
+Canada
+Costa Rica
+Cuba
+Guatemala
+Haiti
+Honduras
+Jamaica
+Mexico
+Panama
+United States
+
+## EUROPE (UEFA)
+Albania
+Austria
+Belgium
+Croatia
+Czech Republic
+Denmark
+England
+France
+Germany
+Greece
+Hungary
+Italy
+Netherlands
+Poland
+Portugal
+Romania
+Serbia
+Slovakia
+Slovenia
+Spain
+Switzerland
+Turkey
+Wales
+
+## AFRICA (CAF)
+Cameroon
+Ghana
+Ivory Coast
+Mali
+Morocco
+Nigeria
+Senegal
+South Africa
+Tunisia
+
+## ASIA (AFC)
+Australia
+Indonesia
+Iran
+Iraq
+Japan
+Jordan
+Oman
+Qatar
+Saudi Arabia
+South Korea
+Uzbekistan
+
+## OCEANIA (OFC)
+New Zealand
