@@ -5,12 +5,15 @@ football data and a three-layer statistical model.
 
 ## Usage
 
+Pass the group's teams as positional arguments:
+
 ```bash
-python3 predictor.py
+python3 predictor.py "Brazil" "Argentina" "France" "Germany"
 ```
 
-No dependencies beyond the Python standard library. Data is fetched
-automatically from GitHub on each run.
+Any number of teams ≥ 2 is accepted. All round-robin fixtures are generated
+automatically. No dependencies beyond the Python standard library. Data is
+fetched automatically from GitHub on each run.
 
 ---
 
@@ -20,7 +23,7 @@ automatically from GitHub on each run.
 — a community-maintained CSV of every international football match since 1872
 (~49 000 matches, updated regularly). Released under CC0 (public domain).
 
-The script uses the last **12 years** of data per team.
+The script uses the last **20 years** of data per team.
 
 ---
 
@@ -142,11 +145,10 @@ each team finishes top-2 becomes its *advancement probability* (Adv%).
 
 ---
 
-## Extending to other groups
+## Team name spelling
 
-Edit the `GROUP_A` list and `FIXTURES` list at the top of `predictor.py`.
-Team names must match the spelling used in the dataset
-(check `results.csv` or `https://en.wikipedia.org/wiki/FIFA_country_codes`).
+Team names must match the spelling used in the dataset. When in doubt, check
+`results.csv` or the FIFA country codes reference on Wikipedia.
 
 ---
 
