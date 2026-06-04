@@ -38,9 +38,38 @@ done
 
 echo "Done. Results saved to $RESULTS_DIR/" >&2
 
+# ── Post-processing ────────────────────────────────────────────────────────────
+
+# Merge all per-group JSON files into a single combined file
+if [[ "$OUTPUT_FORMAT" == *json* ]]; then
+    python3 - <<'PYEOF'
+import json, pathlib, sys
+out = pathlib.Path("results")
+preds = []
+for f in sorted(out.glob("group_*_mpp.json" if False else "group_*.json")):
+    if "_mpp" not in f.name:
+        preds.extend(json.loads(f.read_text()))
+if preds:
+    dest = out / "all_groups.json"
+    dest.write_text(json.dumps(preds, indent=2, ensure_ascii=False))
+    print(f"  [JSON] combined → {dest}  ({len(preds)} matches)", file=sys.stderr)
+PYEOF
+fi
+
 if [[ "$OUTPUT_FORMAT" == *mpp* ]]; then
+    python3 - <<'PYEOF'
+import json, pathlib, sys
+out = pathlib.Path("results")
+preds = []
+for f in sorted(out.glob("group_*_mpp.json")):
+    preds.extend(json.loads(f.read_text()))
+if preds:
+    dest = out / "all_groups_mpp.json"
+    dest.write_text(json.dumps(preds, indent=2, ensure_ascii=False))
+    print(f"  [MPP]  combined → {dest}  ({len(preds)} predictions)", file=sys.stderr)
+PYEOF
     echo "" >&2
-    echo "To push all MPP predictions, run:" >&2
-    echo "  python3 mpp_push.py results/group_A_mpp.json --championship-id <ID>" >&2
+    echo "To push predictions to Mon Petit Prono:" >&2
+    echo "  python3 mpp_push.py results/all_groups_mpp.json --championship-id <ID>" >&2
     echo "  (use --list-championships to find your championship ID)" >&2
 fi

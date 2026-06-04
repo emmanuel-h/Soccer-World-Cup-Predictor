@@ -81,27 +81,18 @@ The token file is updated automatically on every run (Auth0 rotates tokens).
 ### Typical workflow
 
 ```bash
-# 1. Generate all group predictions including MPP payloads
+# 1. Generate all group predictions (CSV + JSON + MPP) and combine them
 bash run_all_groups.sh
+# → writes results/group_*.csv, results/group_*.json, results/group_*_mpp.json
+# → combines into results/all_groups.json and results/all_groups_mpp.json
 
-# 2. Combine into one file
-python3 -c "
-import json, pathlib
-preds = []
-for f in sorted(pathlib.Path('results').glob('group_*_mpp.json')):
-    preds.extend(json.loads(f.read_text()))
-pathlib.Path('results/all_groups_mpp.json').write_text(
-    json.dumps(preds, indent=2, ensure_ascii=False))
-print(len(preds), 'predictions')
-"
-
-# 3. Find your championship ID
+# 2. Find your championship ID
 python3 mpp_push.py --list-championships
 
-# 4. Dry run to preview the match mapping
+# 3. Dry run to preview the match mapping
 python3 mpp_push.py results/all_groups_mpp.json --championship-id 8 --dry-run
 
-# 5. Submit
+# 4. Submit
 python3 mpp_push.py results/all_groups_mpp.json --championship-id 8
 ```
 
