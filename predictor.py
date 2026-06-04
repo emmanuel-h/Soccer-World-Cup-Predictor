@@ -5,10 +5,20 @@ Models: exponential time-decay · Dixon-Coles correction · Bayesian MC
 Data  : https://github.com/martj42/international_results  (CC0)
 """
 
-import argparse, csv, difflib, io, itertools, json, math, pathlib, random, sys, urllib.request
-from typing import Optional
+import argparse
+import csv
+import difflib
+import io
+import itertools
+import json
+import math
+import pathlib
+import random
+import sys
+import urllib.request
 from collections import defaultdict
 from datetime import datetime, timedelta
+from typing import Optional
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
@@ -18,29 +28,29 @@ DATA_URL = (
 )
 
 # Time-decay: half-life ≈ 2.4 years (exp(-0.0008 * 875) = 0.50)
-DECAY_LAMBDA   = 0.0008
-HISTORY_YEARS  = 20      # how far back to look
-H2H_YEARS      = 20      # head-to-head window
+DECAY_LAMBDA  = 0.0008
+HISTORY_YEARS = 20      # how far back to look
+H2H_YEARS     = 20      # head-to-head window
 
 # Bayesian uncertainty: BASE_SIGMA at REF_N_EFF effective recent matches
-BASE_SIGMA     = 0.25
-REF_N_EFF      = 40.0
+BASE_SIGMA = 0.25
+REF_N_EFF  = 40.0
 
 # Dixon-Coles ρ: corrects Poisson over-prediction of 1-0 / 0-1 at the
 # expense of 0-0 / 1-1.  Negative ρ boosts low-score draws.
-DC_RHO         = -0.25
+DC_RHO    = -0.25
 # Win must exceed P_draw by this margin; prevents 0.1% edges from always overriding a draw.
-DRAW_BIAS      = 0.04
+DRAW_BIAS = 0.04
 
-HOME_ADVANTAGE  = 1.08   # applied only when a host nation plays
-WC2026_HOSTS    = {"Mexico", "Canada", "United States"}
+HOME_ADVANTAGE = 1.08   # applied only when a host nation plays
+WC2026_HOSTS   = {"Mexico", "Canada", "United States"}
 
-N_MATCH_SIM    = 30_000  # MC runs per match  (win/draw/loss + scoreline %)
-N_GROUP_SIM    = 25_000  # MC runs for group advancement probabilities
+N_MATCH_SIM = 30_000  # MC runs per match  (win/draw/loss + scoreline %)
+N_GROUP_SIM = 25_000  # MC runs for group advancement probabilities
 
 # ── Poisson primitives ─────────────────────────────────────────────────────────
 
-_FACT = [math.factorial(k) for k in range(25)]
+_FACTORIALS = [math.factorial(k) for k in range(25)]
 
 
 def poisson_pmf(k: int, lam: float) -> float:
@@ -48,7 +58,7 @@ def poisson_pmf(k: int, lam: float) -> float:
         return 1.0 if k == 0 else 0.0
     if k >= 25:
         return 0.0
-    return math.exp(-lam) * (lam ** k) / _FACT[k]
+    return math.exp(-lam) * (lam ** k) / _FACTORIALS[k]
 
 
 def sample_poisson(lam: float) -> int:
@@ -77,13 +87,11 @@ def dc_tau(h: int, a: int, lam_h: float, lam_a: float, rho: float) -> float:
 
 
 def build_dc_grid(lam_h: float, lam_a: float, max_g: int = 10) -> dict:
-    """
-    DC-corrected joint PMF over (home_goals, away_goals), normalised to sum=1.
-    """
+    """DC-corrected joint PMF over (home_goals, away_goals), normalised to sum=1."""
     grid, total = {}, 0.0
     exp_h, exp_a = math.exp(-lam_h), math.exp(-lam_a)
-    h_pows = [lam_h ** k / _FACT[k] for k in range(max_g + 1)]
-    a_pows = [lam_a ** k / _FACT[k] for k in range(max_g + 1)]
+    h_pows = [lam_h ** k / _FACTORIALS[k] for k in range(max_g + 1)]
+    a_pows = [lam_a ** k / _FACTORIALS[k] for k in range(max_g + 1)]
 
     for h in range(max_g + 1):
         ph = exp_h * h_pows[h]
@@ -102,7 +110,7 @@ def probs_from_grid(grid: dict) -> tuple[float, float, float]:
     """Marginalize the joint PMF into (P_home_win, P_draw, P_away_win)."""
     p_h = p_d = p_a = 0.0
     for (h, a), p in grid.items():
-        if   h > a: p_h += p
+        if   h > a:  p_h += p
         elif h == a: p_d += p
         else:        p_a += p
     return p_h, p_d, p_a
@@ -146,7 +154,28 @@ def load_data() -> list[dict]:
 
 # ── Team strength estimation ───────────────────────────────────────────────────
 
-def compute_strengths(data: list[dict], teams: list[str]):
+def _team_weighted_stats(
+    recent: list[dict], team: str, today: datetime
+) -> tuple[float, float, float]:
+    """Decay-weighted (scored, conceded, n_eff) for one team over recent matches."""
+    w_scored = w_conceded = n_eff = 0.0
+    for r in recent:
+        age = (today - r["date"]).days
+        w   = math.exp(-DECAY_LAMBDA * age)
+        if r["home_team"] == team:
+            w_scored   += w * r["home_score"]
+            w_conceded += w * r["away_score"]
+            n_eff      += w
+        elif r["away_team"] == team:
+            w_scored   += w * r["away_score"]
+            w_conceded += w * r["home_score"]
+            n_eff      += w
+    return w_scored, w_conceded, n_eff
+
+
+def compute_strengths(
+    data: list[dict], teams: list[str]
+) -> tuple[dict, dict, dict, float]:
     """
     Exponential-decay weighted attack / defense strengths.
 
@@ -156,43 +185,28 @@ def compute_strengths(data: list[dict], teams: list[str]):
     sigma           : dict[team -> float]  (log-normal uncertainty per team)
     global_avg      : float               (weighted avg goals per team per match)
     """
-    today   = datetime.now()
-    cutoff  = today - timedelta(days=HISTORY_YEARS * 365.25)
-    recent  = [r for r in data if r["date"] >= cutoff]
+    today  = datetime.now()
+    cutoff = today - timedelta(days=HISTORY_YEARS * 365.25)
+    recent = [r for r in data if r["date"] >= cutoff]
 
-    # Decay-weighted global average
     tot_wg = tot_w = 0.0
     for r in recent:
-        w      = math.exp(-DECAY_LAMBDA * (today - r["date"]).days)
+        w       = math.exp(-DECAY_LAMBDA * (today - r["date"]).days)
         tot_wg += w * (r["home_score"] + r["away_score"])
-        tot_w  += w * 2          # two team slots per match
+        tot_w  += w * 2
     global_avg = tot_wg / tot_w if tot_w else 1.3
 
-    attack, defense, sigma = {}, {}, {}
+    attack:  dict[str, float] = {}
+    defense: dict[str, float] = {}
+    sigma:   dict[str, float] = {}
 
     for team in teams:
-        w_scored = w_conceded = n_eff = 0.0
-
-        for r in recent:
-            age = (today - r["date"]).days
-            w   = math.exp(-DECAY_LAMBDA * age)
-
-            if r["home_team"] == team:
-                w_scored   += w * r["home_score"]
-                w_conceded += w * r["away_score"]
-                n_eff      += w
-            elif r["away_team"] == team:
-                w_scored   += w * r["away_score"]
-                w_conceded += w * r["home_score"]
-                n_eff      += w
-
+        w_scored, w_conceded, n_eff = _team_weighted_stats(recent, team, today)
         if n_eff > 0 and global_avg > 0:
             attack[team]  = (w_scored   / n_eff) / global_avg
             defense[team] = (w_conceded / n_eff) / global_avg
         else:
             attack[team] = defense[team] = 1.0
-
-        # Less data (lower n_eff) → wider uncertainty → more upset potential
         sigma[team] = max(0.05, BASE_SIGMA / math.sqrt(max(1.0, n_eff / REF_N_EFF)))
 
     return attack, defense, sigma, global_avg
@@ -218,7 +232,7 @@ def h2h_stats(data: list[dict], t1: str, t2: str) -> tuple | None:
 
 # ── Per-match prediction ───────────────────────────────────────────────────────
 
-def _host_multipliers(home, away):
+def _host_multipliers(home: str, away: str) -> tuple[float, float]:
     """Return (ha_h, ha_a): HOME_ADVANTAGE for whichever team is a WC2026 host, else 1.0."""
     return (
         HOME_ADVANTAGE if home in WC2026_HOSTS else 1.0,
@@ -226,7 +240,10 @@ def _host_multipliers(home, away):
     )
 
 
-def _noisy_lambdas(attack, defense, sigma, global_avg, home, away):
+def _noisy_lambdas(
+    attack: dict, defense: dict, sigma: dict, global_avg: float,
+    home: str, away: str,
+) -> tuple[float, float]:
     """Sample one set of noisy expected goals (log-normal perturbation)."""
     ha_h, ha_a = _host_multipliers(home, away)
     att_h = attack[home] * math.exp(random.gauss(0, sigma[home]))
@@ -238,32 +255,30 @@ def _noisy_lambdas(attack, defense, sigma, global_avg, home, away):
     return lh, la
 
 
-def predict(data, attack, defense, sigma, global_avg, home, away) -> dict:
+def predict(
+    data: list[dict],
+    attack: dict, defense: dict, sigma: dict, global_avg: float,
+    home: str, away: str,
+) -> dict:
     """Two-track: analytical DC grid for outcome/probabilities; MC for scoreline distribution."""
     ha_h, ha_a = _host_multipliers(home, away)
-    # Point-estimate lambdas (for analytical DC scoreline)
     lam_h = max(0.3, min(attack[home] * defense[away] * global_avg * ha_h, 7.0))
     lam_a = max(0.3, min(attack[away] * defense[home] * global_avg * ha_a, 7.0))
 
-    # Analytical DC-corrected probabilities and most-likely score
-    grid          = build_dc_grid(lam_h, lam_a)
-    p_h, p_d, p_a = probs_from_grid(grid)
-    dc_score      = most_likely_score(grid)
+    grid           = build_dc_grid(lam_h, lam_a)
+    p_h, p_d, p_a  = probs_from_grid(grid)
+    dc_score       = most_likely_score(grid)
 
-    # Bayesian MC: sample noisy strengths → Poisson goals → scoreline distribution
     scorelines: dict[tuple, int] = defaultdict(int)
-
     for _ in range(N_MATCH_SIM):
         lh, la = _noisy_lambdas(attack, defense, sigma, global_avg, home, away)
         hg     = sample_poisson(lh)
         ag     = sample_poisson(la)
-
         # Soft DC rejection for low-score cells: resample once when tau < 1
         tau = dc_tau(hg, ag, lh, la, DC_RHO)
         if tau < 1.0 and random.random() > tau:
             hg = sample_poisson(lh)
             ag = sample_poisson(la)
-
         scorelines[(hg, ag)] += 1
 
     top5 = sorted(scorelines.items(), key=lambda x: -x[1])[:5]
@@ -293,7 +308,10 @@ def predict(data, attack, defense, sigma, global_avg, home, away) -> dict:
 
 # ── Full-group Monte Carlo ─────────────────────────────────────────────────────
 
-def group_advancement_mc(attack, defense, sigma, global_avg, fixtures, teams) -> dict:
+def group_advancement_mc(
+    attack: dict, defense: dict, sigma: dict, global_avg: float,
+    fixtures: list[tuple], teams: list[str],
+) -> dict[str, float]:
     """
     Simulate the entire group N_GROUP_SIM times.
     Returns probability each team finishes top-2 (advances to round of 32).
@@ -313,7 +331,7 @@ def group_advancement_mc(attack, defense, sigma, global_avg, fixtures, teams) ->
             gf[home] += hg; ga[home] += ag
             gf[away] += ag; ga[away] += hg
 
-            if   hg > ag: pts[home] += 3
+            if   hg > ag:  pts[home] += 3
             elif hg == ag: pts[home] += 1; pts[away] += 1
             else:          pts[away] += 3
 
@@ -339,7 +357,7 @@ def deterministic_standings(predictions: list[dict], teams: list[str]):
         hg, ag = p["definitive_score"]
         gf[h] += hg; ga[h] += ag
         gf[a] += ag; ga[a] += hg
-        if   hg > ag: pts[h] += 3; wins[h] += 1; loss[a] += 1
+        if   hg > ag:  pts[h] += 3; wins[h] += 1; loss[a] += 1
         elif hg == ag: pts[h] += 1; pts[a] += 1; drws[h] += 1; drws[a] += 1
         else:          pts[a] += 3; wins[a] += 1; loss[h] += 1
 
@@ -357,9 +375,8 @@ def _pct(f: float) -> str:
 
 
 def print_match(p: dict, label: str):
-    h, a   = p["home"], p["away"]
-    hg, ag = p["dc_score"]
-
+    h, a     = p["home"], p["away"]
+    hg, ag   = p["dc_score"]
     dhg, dag = p["definitive_score"]
 
     print(f"\n  {label}")
@@ -372,7 +389,6 @@ def print_match(p: dict, label: str):
           f"  Draw {_pct(p['p_draw'])}  │  {a} {_pct(p['p_away'])}")
     print(f"  ► Prediction       : {p['result']}  →  {dhg} – {dag}")
 
-    # top-5 scorelines from MC
     print(f"  Top scorelines     : ", end="")
     parts = [f"{sc[0]}-{sc[1]} ({cnt/N_MATCH_SIM*100:.1f}%)" for sc, cnt in p["top5"]]
     print("  ".join(parts))
@@ -396,9 +412,22 @@ def print_standings(ordered, pts, wins, drws, loss, gf, ga, adv_pct):
               f"  {adv_pct[t]*100:5.1f}%{mark}")
 
 
-# ── Entry point ────────────────────────────────────────────────────────────────
+# ── Output helpers ─────────────────────────────────────────────────────────────
 
-def write_matches_csv(path: str, group: Optional[str], predictions: list[dict]):
+def _read_json_list(path: pathlib.Path) -> list:
+    """Read an existing JSON array from disk, or return an empty list."""
+    return (
+        json.loads(path.read_text(encoding="utf-8"))
+        if path.exists() and path.stat().st_size
+        else []
+    )
+
+
+def write_matches_csv(
+    path: pathlib.Path | str,
+    group: Optional[str],
+    predictions: list[dict],
+):
     """Append match prediction rows to a CSV file."""
     file = pathlib.Path(path)
     write_header = not file.exists() or file.stat().st_size == 0
@@ -448,22 +477,30 @@ def _predictions_to_records(group: Optional[str], predictions: list[dict]) -> li
     return records
 
 
-def write_matches_json(path: str, group: Optional[str], predictions: list[dict]):
+def write_matches_json(
+    path: pathlib.Path | str,
+    group: Optional[str],
+    predictions: list[dict],
+):
     """Merge match prediction records into a JSON file (array, append-safe)."""
     file = pathlib.Path(path)
-    existing: list = json.loads(file.read_text(encoding="utf-8")) if file.exists() and file.stat().st_size else []
+    existing = _read_json_list(file)
     existing.extend(_predictions_to_records(group, predictions))
     file.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def write_matches_mpp(path: str, group: Optional[str], predictions: list[dict]):
+def write_matches_mpp(
+    path: pathlib.Path | str,
+    group: Optional[str],
+    predictions: list[dict],
+):
     """
     Export predictions in MPP push format: array of objects ready for
     PATCH /user-match-forecasts/entity/{scope}/match/{matchId}.
     Each entry contains the metadata needed to match against the MPP calendar.
     """
     file = pathlib.Path(path)
-    existing: list = json.loads(file.read_text(encoding="utf-8")) if file.exists() and file.stat().st_size else []
+    existing = _read_json_list(file)
     for p in predictions:
         hg, ag = p["definitive_score"]
         existing.append({
@@ -476,6 +513,8 @@ def write_matches_mpp(path: str, group: Optional[str], predictions: list[dict]):
         })
     file.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
 
+
+# ── Argument parsing and team validation ───────────────────────────────────────
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -511,9 +550,7 @@ def parse_args():
         help="Base filename (without extension) for output files. "
              "Overrides the auto-name derived from --group.",
     )
-    # Legacy flag kept for backward compatibility
-    out_group.add_argument("--matches-csv", metavar="FILE",
-                           help=argparse.SUPPRESS)
+    out_group.add_argument("--matches-csv", metavar="FILE", help=argparse.SUPPRESS)
     out_group.add_argument("--group", metavar="NAME",
                            help="Group label written into output files (e.g. 'Group A')")
 
@@ -583,27 +620,9 @@ def _resolve_output_paths(args) -> dict[str, pathlib.Path]:
     return paths
 
 
-def main():
-    args  = parse_args()
-    teams = args.teams
-    check_teams(teams, load_known_teams())
-    group_label = args.group
-    output_paths = _resolve_output_paths(args)
-    fixtures = generate_fixtures(teams)
+# ── main() helpers ─────────────────────────────────────────────────────────────
 
-    print(f"\n{BAR}")
-    print("  WORLD CUP 2026 — GROUP PREDICTOR  (v2)")
-    print(f"  {', '.join(teams)}")
-    print(BAR)
-
-    # 1 ── load
-    print("\n[1/4] Loading historical data …")
-    data = load_data()
-
-    # 2 ── strengths
-    print("\n[2/4] Computing decay-weighted team strengths …")
-    attack, defense, sigma, global_avg = compute_strengths(data, teams)
-    print(f"  Global avg goals / team / match : {global_avg:.3f}")
+def _display_strengths(teams: list[str], attack: dict, defense: dict, sigma: dict):
     print(f"\n  {'Team':<24} {'Attack':>8} {'Defense':>9} {'σ (noise)':>10}")
     print(f"  {'─'*54}")
     for t in teams:
@@ -611,20 +630,27 @@ def main():
         print(f"  {t:<24} {attack[t]:>8.3f} {defense[t]:>9.3f} {sigma[t]:>10.3f}"
               f"  (n_eff ≈ {n_eff:.0f})")
 
-    # 3 ── match predictions
-    print(f"\n[3/4] Predicting matches  (Bayesian MC, {N_MATCH_SIM:,} runs / match) …")
-    print(f"\n{BAR}")
-    print("  MATCH PREDICTIONS")
-    print(BAR)
 
+def _run_match_predictions(
+    data: list[dict],
+    attack: dict, defense: dict, sigma: dict, global_avg: float,
+    fixtures: list[tuple],
+) -> list[dict]:
     predictions = []
     for home, away, label in fixtures:
         p = predict(data, attack, defense, sigma, global_avg, home, away)
         predictions.append(p)
         print_match(p, label)
+    return predictions
 
+
+def _write_prediction_outputs(
+    output_paths: dict[str, pathlib.Path],
+    group_label: Optional[str],
+    predictions: list[dict],
+):
     writers = {
-        "csv":  lambda path: write_matches_csv(str(path), group_label, predictions),
+        "csv":  lambda path: write_matches_csv(path, group_label, predictions),
         "json": lambda path: write_matches_json(path, group_label, predictions),
         "mpp":  lambda path: write_matches_mpp(path, group_label, predictions),
     }
@@ -633,10 +659,40 @@ def main():
         writers[fmt](path)
         print(f"\n  [{fmt.upper()}] written → {path}")
 
-    # 4 ── group advancement
+
+# ── Entry point ────────────────────────────────────────────────────────────────
+
+def main():
+    args         = parse_args()
+    teams        = args.teams
+    group_label  = args.group
+    output_paths = _resolve_output_paths(args)
+    fixtures     = generate_fixtures(teams)
+
+    check_teams(teams, load_known_teams())
+
+    print(f"\n{BAR}")
+    print("  WORLD CUP 2026 — GROUP PREDICTOR  (v2)")
+    print(f"  {', '.join(teams)}")
+    print(BAR)
+
+    print("\n[1/4] Loading historical data …")
+    data = load_data()
+
+    print("\n[2/4] Computing decay-weighted team strengths …")
+    attack, defense, sigma, global_avg = compute_strengths(data, teams)
+    print(f"  Global avg goals / team / match : {global_avg:.3f}")
+    _display_strengths(teams, attack, defense, sigma)
+
+    print(f"\n[3/4] Predicting matches  (Bayesian MC, {N_MATCH_SIM:,} runs / match) …")
+    print(f"\n{BAR}")
+    print("  MATCH PREDICTIONS")
+    print(BAR)
+    predictions = _run_match_predictions(data, attack, defense, sigma, global_avg, fixtures)
+    _write_prediction_outputs(output_paths, group_label, predictions)
+
     print(f"\n[4/4] Simulating group advancement  ({N_GROUP_SIM:,} full-group runs) …")
     adv_pct = group_advancement_mc(attack, defense, sigma, global_avg, fixtures, teams)
-
     ordered, pts, wins, drws, loss, gf, ga = deterministic_standings(predictions, teams)
 
     print(f"\n{BAR}")

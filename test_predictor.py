@@ -1,8 +1,11 @@
 """Unit tests for predictor.py — no network access required."""
 
+import json
 import math
+import pathlib
 import random
 import sys
+import tempfile
 import unittest
 from datetime import datetime, timedelta
 from io import StringIO
@@ -17,9 +20,13 @@ from predictor import (
     h2h_stats,
     load_known_teams,
     most_likely_score,
+    most_likely_score_for_outcome,
     poisson_pmf,
     probs_from_grid,
     sample_poisson,
+    write_matches_csv,
+    write_matches_json,
+    write_matches_mpp,
 )
 
 
@@ -273,6 +280,118 @@ class TestCheckTeams(unittest.TestCase):
             with patch("sys.stderr", buf):
                 check_teams(["ZZZZZZ"], self.KNOWN)
         self.assertNotIn("did you mean", buf.getvalue())
+
+
+# ── most_likely_score_for_outcome ──────────────────────────────────────────────
+
+class TestMostLikelyScoreForOutcome(unittest.TestCase):
+
+    def test_home_outcome_yields_home_win_scoreline(self):
+        grid = build_dc_grid(2.5, 0.8)  # strong home side
+        h, a = most_likely_score_for_outcome(grid, "home")
+        self.assertGreater(h, a)
+
+    def test_away_outcome_yields_away_win_scoreline(self):
+        grid = build_dc_grid(0.8, 2.5)  # strong away side
+        h, a = most_likely_score_for_outcome(grid, "away")
+        self.assertLess(h, a)
+
+    def test_draw_outcome_yields_level_scoreline(self):
+        grid = build_dc_grid(1.5, 1.5)
+        h, a = most_likely_score_for_outcome(grid, "draw")
+        self.assertEqual(h, a)
+
+
+# ── shared fixture for write tests ────────────────────────────────────────────
+
+_SAMPLE_PREDICTION = {
+    "home": "Brazil", "away": "France",
+    "definitive_score": (2, 1),
+    "lam_h": 1.80, "lam_a": 1.20,
+    "p_home": 0.50, "p_draw": 0.25, "p_away": 0.25,
+    "result": "Brazil WIN",
+}
+
+
+# ── write_matches_csv ──────────────────────────────────────────────────────────
+
+class TestWriteMatchesCsv(unittest.TestCase):
+
+    def setUp(self):
+        self.tmp = pathlib.Path(tempfile.mktemp(suffix=".csv"))
+
+    def tearDown(self):
+        self.tmp.unlink(missing_ok=True)
+
+    def test_creates_file_with_header_and_row(self):
+        write_matches_csv(self.tmp, "Group A", [_SAMPLE_PREDICTION])
+        lines = self.tmp.read_text().splitlines()
+        self.assertIn("HomeTeam", lines[0])
+        self.assertIn("Brazil", lines[1])
+
+    def test_appends_without_duplicate_header(self):
+        write_matches_csv(self.tmp, "Group A", [_SAMPLE_PREDICTION])
+        write_matches_csv(self.tmp, "Group A", [_SAMPLE_PREDICTION])
+        lines = self.tmp.read_text().splitlines()
+        header_count = sum(1 for line in lines if "HomeTeam" in line)
+        self.assertEqual(header_count, 1)
+        self.assertEqual(len(lines), 3)  # header + 2 data rows
+
+    def test_group_label_is_written(self):
+        write_matches_csv(self.tmp, "Group Z", [_SAMPLE_PREDICTION])
+        self.assertIn("Group Z", self.tmp.read_text())
+
+
+# ── write_matches_json ─────────────────────────────────────────────────────────
+
+class TestWriteMatchesJson(unittest.TestCase):
+
+    def setUp(self):
+        self.tmp = pathlib.Path(tempfile.mktemp(suffix=".json"))
+
+    def tearDown(self):
+        self.tmp.unlink(missing_ok=True)
+
+    def test_creates_valid_json_array(self):
+        write_matches_json(self.tmp, "Group A", [_SAMPLE_PREDICTION])
+        data = json.loads(self.tmp.read_text())
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["homeTeam"], "Brazil")
+        self.assertEqual(data[0]["homeScore"], 2)
+
+    def test_appends_to_existing(self):
+        write_matches_json(self.tmp, "Group A", [_SAMPLE_PREDICTION])
+        write_matches_json(self.tmp, "Group A", [_SAMPLE_PREDICTION])
+        data = json.loads(self.tmp.read_text())
+        self.assertEqual(len(data), 2)
+
+
+# ── write_matches_mpp ──────────────────────────────────────────────────────────
+
+class TestWriteMatchesMpp(unittest.TestCase):
+
+    def setUp(self):
+        self.tmp = pathlib.Path(tempfile.mktemp(suffix=".json"))
+
+    def tearDown(self):
+        self.tmp.unlink(missing_ok=True)
+
+    def test_creates_mpp_format(self):
+        write_matches_mpp(self.tmp, "Group A", [_SAMPLE_PREDICTION])
+        data = json.loads(self.tmp.read_text())
+        self.assertEqual(len(data), 1)
+        record = data[0]
+        self.assertEqual(record["homeTeam"], "Brazil")
+        self.assertEqual(record["homeScore"], 2)
+        self.assertEqual(record["awayScore"], 1)
+        self.assertEqual(record["originPage"], "home")
+
+    def test_appends_to_existing(self):
+        write_matches_mpp(self.tmp, "Group A", [_SAMPLE_PREDICTION])
+        write_matches_mpp(self.tmp, "Group A", [_SAMPLE_PREDICTION])
+        data = json.loads(self.tmp.read_text())
+        self.assertEqual(len(data), 2)
 
 
 if __name__ == "__main__":
