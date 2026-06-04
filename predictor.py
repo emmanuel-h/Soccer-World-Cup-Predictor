@@ -5,7 +5,7 @@ Models: exponential time-decay · Dixon-Coles correction · Bayesian MC
 Data  : https://github.com/martj42/international_results  (CC0)
 """
 
-import csv, io, math, random, urllib.request
+import argparse, csv, io, itertools, math, random, urllib.request
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -15,17 +15,6 @@ DATA_URL = (
     "https://raw.githubusercontent.com/martj42/"
     "international_results/master/results.csv"
 )
-
-GROUP_A = ["Mexico", "South Africa", "South Korea", "Czech Republic"]
-
-FIXTURES = [
-    ("Mexico",         "South Africa",   "Matchday 1 – Jun 11"),
-    ("South Korea",    "Czech Republic", "Matchday 1 – Jun 12"),
-    ("Mexico",         "South Korea",    "Matchday 2 – Jun 15"),
-    ("South Africa",   "Czech Republic", "Matchday 2 – Jun 16"),
-    ("Czech Republic", "Mexico",         "Matchday 3 – Jun 19"),
-    ("South Africa",   "South Korea",    "Matchday 3 – Jun 19"),
-]
 
 # Time-decay: half-life ≈ 2.4 years (exp(-0.0008 * 875) = 0.50)
 DECAY_LAMBDA   = 0.0008
@@ -312,7 +301,7 @@ def group_advancement_mc(attack, defense, sigma, global_avg, fixtures, teams) ->
 
 # ── Deterministic standings helper ────────────────────────────────────────────
 
-def deterministic_standings(predictions: list[dict]):
+def deterministic_standings(predictions: list[dict], teams: list[str]):
     pts  = defaultdict(int)
     gf   = defaultdict(int)
     ga   = defaultdict(int)
@@ -329,7 +318,7 @@ def deterministic_standings(predictions: list[dict]):
         elif hg == ag: pts[h] += 1; pts[a] += 1; drws[h] += 1; drws[a] += 1
         else:          pts[a] += 3; wins[a] += 1; loss[h] += 1
 
-    ordered = sorted(GROUP_A, key=lambda t: (pts[t], gf[t] - ga[t], gf[t]), reverse=True)
+    ordered = sorted(teams, key=lambda t: (pts[t], gf[t] - ga[t], gf[t]), reverse=True)
     return ordered, pts, wins, drws, loss, gf, ga
 
 
@@ -382,10 +371,33 @@ def print_standings(ordered, pts, wins, drws, loss, gf, ga, adv_pct):
 
 # ── Entry point ────────────────────────────────────────────────────────────────
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="World Cup 2026 Group Predictor",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="Example:\n  python predictor.py Mexico \"South Africa\" \"South Korea\" \"Czech Republic\"",
+    )
+    parser.add_argument("teams", nargs="+", metavar="TEAM",
+                        help="Teams in the group (at least 2)")
+    args = parser.parse_args()
+    if len(args.teams) < 2:
+        parser.error("Provide at least 2 teams.")
+    return args
+
+
+def generate_fixtures(teams: list[str]) -> list[tuple]:
+    return [(t1, t2, f"Match {i}") for i, (t1, t2) in
+            enumerate(itertools.combinations(teams, 2), 1)]
+
+
 def main():
+    args  = parse_args()
+    teams = args.teams
+    fixtures = generate_fixtures(teams)
+
     print(f"\n{BAR}")
-    print("  WORLD CUP 2026 — GROUP A PREDICTOR  (v2)")
-    print(f"  {', '.join(GROUP_A)}")
+    print("  WORLD CUP 2026 — GROUP PREDICTOR  (v2)")
+    print(f"  {', '.join(teams)}")
     print(BAR)
 
     # 1 ── load
@@ -394,11 +406,11 @@ def main():
 
     # 2 ── strengths
     print("\n[2/4] Computing decay-weighted team strengths …")
-    attack, defense, sigma, global_avg = compute_strengths(data, GROUP_A)
+    attack, defense, sigma, global_avg = compute_strengths(data, teams)
     print(f"  Global avg goals / team / match : {global_avg:.3f}")
     print(f"\n  {'Team':<24} {'Attack':>8} {'Defense':>9} {'σ (noise)':>10}")
     print(f"  {'─'*54}")
-    for t in GROUP_A:
+    for t in teams:
         n_eff = REF_N_EFF * (BASE_SIGMA / sigma[t]) ** 2
         print(f"  {t:<24} {attack[t]:>8.3f} {defense[t]:>9.3f} {sigma[t]:>10.3f}"
               f"  (n_eff ≈ {n_eff:.0f})")
@@ -410,19 +422,19 @@ def main():
     print(BAR)
 
     predictions = []
-    for home, away, label in FIXTURES:
+    for home, away, label in fixtures:
         p = predict(data, attack, defense, sigma, global_avg, home, away)
         predictions.append(p)
         print_match(p, label)
 
     # 4 ── group advancement
     print(f"\n[4/4] Simulating group advancement  ({N_GROUP_SIM:,} full-group runs) …")
-    adv_pct = group_advancement_mc(attack, defense, sigma, global_avg, FIXTURES, GROUP_A)
+    adv_pct = group_advancement_mc(attack, defense, sigma, global_avg, fixtures, teams)
 
-    ordered, pts, wins, drws, loss, gf, ga = deterministic_standings(predictions)
+    ordered, pts, wins, drws, loss, gf, ga = deterministic_standings(predictions, teams)
 
     print(f"\n{BAR}")
-    print("  PREDICTED GROUP A STANDINGS")
+    print("  PREDICTED STANDINGS")
     print("  (Adv% = probability of finishing top-2 across all MC simulations)")
     print(BAR)
     print_standings(ordered, pts, wins, drws, loss, gf, ga, adv_pct)
