@@ -149,6 +149,12 @@ Where `n_eff = Σ decay_weights` (effective number of recent matches) and
 | Team with many recent matches | low σ → tight prediction |
 | Team with sparse data | high σ → wide prediction → upsets more likely |
 
+**Poisson as the upset engine**: even with Brazil expected at λ=2.5 and
+Morocco at λ=0.8, the Poisson distribution gives Morocco a non-trivial chance
+of scoring 2 while Brazil scores 0 in any single draw.  The noise layer
+amplifies this for data-sparse teams, but the Poisson variance is what makes
+upsets structurally possible regardless of the strength gap.
+
 **30 000 simulations per match**: in each run, noisy attack/defense values
 are sampled, new λ values are derived, and goals are drawn from Poisson.
 A partial DC rejection step is applied to low-score cells.  These simulations
