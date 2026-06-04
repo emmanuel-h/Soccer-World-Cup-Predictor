@@ -1,5 +1,7 @@
-Group,Rank,Team,MP,W,D,L,GF,GA,GD,Pts,Adv%
-Group G,1,Belgium,3,0,3,0,3,3,+0,3,63.2
-Group G,2,New Zealand,3,0,3,0,3,3,+0,3,26.5
-Group G,3,Egypt,3,0,3,0,2,2,+0,3,48.6
-Group G,4,Iran,3,0,3,0,2,2,+0,3,61.6
+Group,Match,HomeTeam,AwayTeam,ExpGoalsHome,ExpGoalsAway,MostLikelyScore,P_Home,P_Draw,P_Away,Prediction
+Group G,1,Belgium,Egypt,1.24,1.00,1-1,41.5,28.1,30.3,Belgium WIN
+Group G,2,Belgium,Iran,1.35,1.36,1-1,37.4,24.6,38.0,Iran WIN
+Group G,3,Belgium,New Zealand,2.06,1.21,1-1,56.4,20.5,23.1,Belgium WIN
+Group G,4,Egypt,Iran,0.88,1.03,0-0,30.9,30.9,38.2,Iran WIN
+Group G,5,Egypt,New Zealand,1.35,0.91,1-1,46.5,27.3,26.2,Egypt WIN
+Group G,6,Iran,New Zealand,1.84,0.99,1-1,56.6,22.3,21.1,Iran WIN

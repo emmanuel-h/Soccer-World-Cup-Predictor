@@ -1,5 +1,7 @@
-Group,Rank,Team,MP,W,D,L,GF,GA,GD,Pts,Adv%
-Group B,1,Canada,3,1,2,0,4,2,+2,5,74.8
-Group B,2,Qatar,3,0,3,0,3,3,+0,3,35.5
-Group B,3,Switzerland,3,0,3,0,3,3,+0,3,63.1
-Group B,4,Bosnia and Herzegovina,3,0,2,1,2,4,-2,2,26.6
+Group,Match,HomeTeam,AwayTeam,ExpGoalsHome,ExpGoalsAway,MostLikelyScore,P_Home,P_Draw,P_Away,Prediction
+Group B,1,Canada,Bosnia and Herzegovina,1.91,0.80,2-0,62.5,21.3,16.2,Canada WIN
+Group B,2,Canada,Qatar,1.81,0.94,1-1,56.8,22.6,20.6,Canada WIN
+Group B,3,Canada,Switzerland,1.47,1.20,1-1,43.6,24.6,31.8,Canada WIN
+Group B,4,Bosnia and Herzegovina,Qatar,1.36,1.56,1-1,33.4,23.8,42.7,Qatar WIN
+Group B,5,Bosnia and Herzegovina,Switzerland,1.10,1.99,1-1,22.0,20.5,57.5,Switzerland WIN
+Group B,6,Qatar,Switzerland,1.30,1.88,1-1,27.2,21.6,51.2,Switzerland WIN
