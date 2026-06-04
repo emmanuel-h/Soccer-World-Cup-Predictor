@@ -17,6 +17,7 @@ Venezuela
 Canada
 Costa Rica
 Cuba
+Curaçao
 Guatemala
 Haiti
 Honduras
@@ -29,6 +30,7 @@ United States
 Albania
 Austria
 Belgium
+Bosnia and Herzegovina
 Croatia
 Czech Republic
 Denmark
@@ -39,19 +41,26 @@ Greece
 Hungary
 Italy
 Netherlands
+Norway
 Poland
 Portugal
 Romania
+Scotland
 Serbia
 Slovakia
 Slovenia
 Spain
+Sweden
 Switzerland
 Turkey
 Wales
 
 ## AFRICA (CAF)
+Algeria
 Cameroon
+Cape Verde
+DR Congo
+Egypt
 Ghana
 Ivory Coast
 Mali
