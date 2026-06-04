@@ -28,7 +28,7 @@ REF_N_EFF      = 40.0
 
 # Dixon-Coles ρ: corrects Poisson over-prediction of 1-0 / 0-1 at the
 # expense of 0-0 / 1-1.  Negative ρ boosts low-score draws.
-DC_RHO         = -0.10
+DC_RHO         = -0.25
 
 HOME_ADVANTAGE = 1.08    # neutral WC venue → modest edge for "home" ordering
 
