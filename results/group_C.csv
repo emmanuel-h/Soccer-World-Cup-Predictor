@@ -1,7 +1,7 @@
 Group,Match,HomeTeam,AwayTeam,ExpGoalsHome,ExpGoalsAway,DefinitiveScore,P_Home,P_Draw,P_Away,Prediction
-Group C,1,Brazil,Morocco,0.67,1.26,0-1,16.8,35.8,47.4,Morocco WIN
-Group C,2,Brazil,Haiti,1.84,1.35,2-1,46.4,27.9,25.7,Brazil WIN
-Group C,3,Brazil,Scotland,2.09,0.91,2-0,62.1,24.8,13.1,Brazil WIN
-Group C,4,Morocco,Haiti,1.89,0.69,2-0,63.6,26.1,10.3,Morocco WIN
-Group C,5,Morocco,Scotland,2.15,0.46,2-0,74.8,20.4,4.9,Morocco WIN
-Group C,6,Haiti,Scotland,2.31,1.27,2-1,58.5,23.4,18.0,Haiti WIN
+Group C,1,Brazil,Morocco,0.62,1.26,0-1,15.4,35.7,48.9,Morocco WIN
+Group C,2,Brazil,Haiti,1.70,1.35,2-1,43.1,29.1,27.8,Brazil WIN
+Group C,3,Brazil,Scotland,1.93,0.91,2-0,58.6,26.7,14.7,Brazil WIN
+Group C,4,Morocco,Haiti,1.75,0.69,2-0,60.3,28.1,11.5,Morocco WIN
+Group C,5,Morocco,Scotland,1.99,0.46,2-0,71.8,22.6,5.6,Morocco WIN
+Group C,6,Haiti,Scotland,2.14,1.27,2-1,54.9,25.1,20.0,Haiti WIN
