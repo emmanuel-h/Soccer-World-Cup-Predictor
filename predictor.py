@@ -108,6 +108,17 @@ def most_likely_score(grid: dict) -> tuple[int, int]:
     return max(grid, key=grid.__getitem__)
 
 
+def most_likely_score_for_outcome(grid: dict, outcome: str) -> tuple[int, int]:
+    """Most probable scoreline consistent with the predicted outcome (home/draw/away)."""
+    if outcome == "home":
+        filtered = {k: v for k, v in grid.items() if k[0] > k[1]}
+    elif outcome == "draw":
+        filtered = {k: v for k, v in grid.items() if k[0] == k[1]}
+    else:
+        filtered = {k: v for k, v in grid.items() if k[0] < k[1]}
+    return max(filtered, key=filtered.__getitem__) if filtered else most_likely_score(grid)
+
+
 # ── Data loading ───────────────────────────────────────────────────────────────
 
 def load_data() -> list[dict]:
@@ -250,15 +261,20 @@ def predict(data, attack, defense, sigma, global_avg, home, away) -> dict:
 
     top5 = sorted(scorelines.items(), key=lambda x: -x[1])[:5]
 
-    result = (
-        f"{home} WIN" if p_hw > p_aw and p_hw > p_dw else
-        f"{away} WIN" if p_aw > p_hw and p_aw > p_dw else "DRAW"
-    )
+    if p_hw >= p_aw and p_hw >= p_dw:
+        outcome, result = "home", f"{home} WIN"
+    elif p_aw >= p_hw and p_aw >= p_dw:
+        outcome, result = "away", f"{away} WIN"
+    else:
+        outcome, result = "draw", "DRAW"
+
+    definitive_score = most_likely_score_for_outcome(grid, outcome)
 
     return {
         "home": home, "away": away,
         "lam_h": lam_h, "lam_a": lam_a,
         "dc_score": dc_score,
+        "definitive_score": definitive_score,
         "p_home": p_hw, "p_draw": p_dw, "p_away": p_aw,
         "result": result,
         "top5": top5,
@@ -312,7 +328,7 @@ def deterministic_standings(predictions: list[dict], teams: list[str]):
 
     for p in predictions:
         h, a   = p["home"], p["away"]
-        hg, ag = p["dc_score"]
+        hg, ag = p["definitive_score"]
         gf[h] += hg; ga[h] += ag
         gf[a] += ag; ga[a] += hg
         if   hg > ag: pts[h] += 3; wins[h] += 1; loss[a] += 1
@@ -336,15 +352,17 @@ def print_match(p: dict, label: str):
     h, a   = p["home"], p["away"]
     hg, ag = p["dc_score"]
 
+    dhg, dag = p["definitive_score"]
+
     print(f"\n  {label}")
     print(f"  {'─'*64}")
     print(f"  {h:<24} vs  {a}")
     print(f"  Exp. goals (base)  : {p['lam_h']:.2f} – {p['lam_a']:.2f}"
           f"   σ = {p['sigma_home']:.2f} / {p['sigma_away']:.2f}")
-    print(f"  Most-likely score  : {hg} – {ag}  (DC-corrected analytical)")
+    print(f"  Most-likely score  : {hg} – {ag}  (DC analytical, unconstrained)")
     print(f"  Win probability    : {h} {_pct(p['p_home'])}  │"
           f"  Draw {_pct(p['p_draw'])}  │  {a} {_pct(p['p_away'])}")
-    print(f"  ► Prediction       : {p['result']}")
+    print(f"  ► Prediction       : {p['result']}  →  {dhg} – {dag}")
 
     # top-5 scorelines from MC
     print(f"  Top scorelines     : ", end="")
@@ -381,11 +399,11 @@ def write_matches_csv(path: str, group: Optional[str], predictions: list[dict]):
         if write_header:
             writer.writerow([
                 "Group", "Match", "HomeTeam", "AwayTeam",
-                "ExpGoalsHome", "ExpGoalsAway", "MostLikelyScore",
+                "ExpGoalsHome", "ExpGoalsAway", "DefinitiveScore",
                 "P_Home", "P_Draw", "P_Away", "Prediction",
             ])
         for i, p in enumerate(predictions, 1):
-            hg, ag = p["dc_score"]
+            hg, ag = p["definitive_score"]
             writer.writerow([
                 group or "",
                 i,
