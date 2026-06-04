@@ -20,6 +20,19 @@ python3 predictor.py "Brazil" "Argentina" "France" "Germany"
 Any number of teams ≥ 2 is accepted. All round-robin fixtures are generated
 automatically. Data is fetched automatically from GitHub on each run.
 
+### Run all groups at once
+
+```bash
+bash run_all_groups.sh
+```
+
+Reads every file in `group_stage/`, runs the predictor for each group, and
+writes one CSV per group to `results/group_<X>.csv`.
+
+Each CSV has the columns: `Group, Rank, Team, MP, W, D, L, GF, GA, GD, Pts, Adv%`
+
+Pre-computed results for WC 2026 are already committed under [`results/`](results/).
+
 ---
 
 ## Data source
