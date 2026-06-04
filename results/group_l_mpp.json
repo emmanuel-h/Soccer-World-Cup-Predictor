@@ -1,0 +1,50 @@
+[
+  {
+    "group": "Group L",
+    "homeTeam": "England",
+    "awayTeam": "Croatia",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group L",
+    "homeTeam": "England",
+    "awayTeam": "Ghana",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group L",
+    "homeTeam": "England",
+    "awayTeam": "Panama",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group L",
+    "homeTeam": "Croatia",
+    "awayTeam": "Ghana",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group L",
+    "homeTeam": "Croatia",
+    "awayTeam": "Panama",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group L",
+    "homeTeam": "Ghana",
+    "awayTeam": "Panama",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  }
+]

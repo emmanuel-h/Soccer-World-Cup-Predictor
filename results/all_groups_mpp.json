@@ -1,0 +1,578 @@
+[
+  {
+    "group": "Group A",
+    "homeTeam": "Mexico",
+    "awayTeam": "South Africa",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group A",
+    "homeTeam": "Mexico",
+    "awayTeam": "South Korea",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group A",
+    "homeTeam": "Mexico",
+    "awayTeam": "Czech Republic",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group A",
+    "homeTeam": "South Africa",
+    "awayTeam": "South Korea",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group A",
+    "homeTeam": "South Africa",
+    "awayTeam": "Czech Republic",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group A",
+    "homeTeam": "South Korea",
+    "awayTeam": "Czech Republic",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group B",
+    "homeTeam": "Canada",
+    "awayTeam": "Bosnia and Herzegovina",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group B",
+    "homeTeam": "Canada",
+    "awayTeam": "Qatar",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group B",
+    "homeTeam": "Canada",
+    "awayTeam": "Switzerland",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group B",
+    "homeTeam": "Bosnia and Herzegovina",
+    "awayTeam": "Qatar",
+    "homeScore": 1,
+    "awayScore": 2,
+    "originPage": "home"
+  },
+  {
+    "group": "Group B",
+    "homeTeam": "Bosnia and Herzegovina",
+    "awayTeam": "Switzerland",
+    "homeScore": 1,
+    "awayScore": 2,
+    "originPage": "home"
+  },
+  {
+    "group": "Group B",
+    "homeTeam": "Qatar",
+    "awayTeam": "Switzerland",
+    "homeScore": 1,
+    "awayScore": 2,
+    "originPage": "home"
+  },
+  {
+    "group": "Group C",
+    "homeTeam": "Brazil",
+    "awayTeam": "Morocco",
+    "homeScore": 0,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group C",
+    "homeTeam": "Brazil",
+    "awayTeam": "Haiti",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group C",
+    "homeTeam": "Brazil",
+    "awayTeam": "Scotland",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group C",
+    "homeTeam": "Morocco",
+    "awayTeam": "Haiti",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group C",
+    "homeTeam": "Morocco",
+    "awayTeam": "Scotland",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group C",
+    "homeTeam": "Haiti",
+    "awayTeam": "Scotland",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group D",
+    "homeTeam": "United States",
+    "awayTeam": "Paraguay",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group D",
+    "homeTeam": "United States",
+    "awayTeam": "Australia",
+    "homeScore": 1,
+    "awayScore": 2,
+    "originPage": "home"
+  },
+  {
+    "group": "Group D",
+    "homeTeam": "United States",
+    "awayTeam": "Turkey",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group D",
+    "homeTeam": "Paraguay",
+    "awayTeam": "Australia",
+    "homeScore": 0,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group D",
+    "homeTeam": "Paraguay",
+    "awayTeam": "Turkey",
+    "homeScore": 0,
+    "awayScore": 2,
+    "originPage": "home"
+  },
+  {
+    "group": "Group D",
+    "homeTeam": "Australia",
+    "awayTeam": "Turkey",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group E",
+    "homeTeam": "Germany",
+    "awayTeam": "Ivory Coast",
+    "homeScore": 1,
+    "awayScore": 2,
+    "originPage": "home"
+  },
+  {
+    "group": "Group E",
+    "homeTeam": "Germany",
+    "awayTeam": "Ecuador",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group E",
+    "homeTeam": "Germany",
+    "awayTeam": "Curaçao",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group E",
+    "homeTeam": "Ivory Coast",
+    "awayTeam": "Ecuador",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group E",
+    "homeTeam": "Ivory Coast",
+    "awayTeam": "Curaçao",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group E",
+    "homeTeam": "Ecuador",
+    "awayTeam": "Curaçao",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group F",
+    "homeTeam": "Netherlands",
+    "awayTeam": "Japan",
+    "homeScore": 1,
+    "awayScore": 2,
+    "originPage": "home"
+  },
+  {
+    "group": "Group F",
+    "homeTeam": "Netherlands",
+    "awayTeam": "Sweden",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group F",
+    "homeTeam": "Netherlands",
+    "awayTeam": "Tunisia",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group F",
+    "homeTeam": "Japan",
+    "awayTeam": "Sweden",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group F",
+    "homeTeam": "Japan",
+    "awayTeam": "Tunisia",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group F",
+    "homeTeam": "Sweden",
+    "awayTeam": "Tunisia",
+    "homeScore": 0,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group G",
+    "homeTeam": "Belgium",
+    "awayTeam": "Egypt",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group G",
+    "homeTeam": "Belgium",
+    "awayTeam": "Iran",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group G",
+    "homeTeam": "Belgium",
+    "awayTeam": "New Zealand",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group G",
+    "homeTeam": "Egypt",
+    "awayTeam": "Iran",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group G",
+    "homeTeam": "Egypt",
+    "awayTeam": "New Zealand",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group G",
+    "homeTeam": "Iran",
+    "awayTeam": "New Zealand",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group H",
+    "homeTeam": "Spain",
+    "awayTeam": "Cape Verde",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group H",
+    "homeTeam": "Spain",
+    "awayTeam": "Saudi Arabia",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group H",
+    "homeTeam": "Spain",
+    "awayTeam": "Uruguay",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group H",
+    "homeTeam": "Cape Verde",
+    "awayTeam": "Saudi Arabia",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group H",
+    "homeTeam": "Cape Verde",
+    "awayTeam": "Uruguay",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group H",
+    "homeTeam": "Saudi Arabia",
+    "awayTeam": "Uruguay",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group I",
+    "homeTeam": "France",
+    "awayTeam": "Senegal",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group I",
+    "homeTeam": "France",
+    "awayTeam": "Iraq",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group I",
+    "homeTeam": "France",
+    "awayTeam": "Norway",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group I",
+    "homeTeam": "Senegal",
+    "awayTeam": "Iraq",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group I",
+    "homeTeam": "Senegal",
+    "awayTeam": "Norway",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group I",
+    "homeTeam": "Iraq",
+    "awayTeam": "Norway",
+    "homeScore": 0,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group J",
+    "homeTeam": "Argentina",
+    "awayTeam": "Algeria",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group J",
+    "homeTeam": "Argentina",
+    "awayTeam": "Austria",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group J",
+    "homeTeam": "Argentina",
+    "awayTeam": "Jordan",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group J",
+    "homeTeam": "Algeria",
+    "awayTeam": "Austria",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group J",
+    "homeTeam": "Algeria",
+    "awayTeam": "Jordan",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group J",
+    "homeTeam": "Austria",
+    "awayTeam": "Jordan",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group K",
+    "homeTeam": "Portugal",
+    "awayTeam": "DR Congo",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group K",
+    "homeTeam": "Portugal",
+    "awayTeam": "Uzbekistan",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group K",
+    "homeTeam": "Portugal",
+    "awayTeam": "Colombia",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group K",
+    "homeTeam": "DR Congo",
+    "awayTeam": "Uzbekistan",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group K",
+    "homeTeam": "DR Congo",
+    "awayTeam": "Colombia",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group K",
+    "homeTeam": "Uzbekistan",
+    "awayTeam": "Colombia",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group L",
+    "homeTeam": "England",
+    "awayTeam": "Croatia",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group L",
+    "homeTeam": "England",
+    "awayTeam": "Ghana",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group L",
+    "homeTeam": "England",
+    "awayTeam": "Panama",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group L",
+    "homeTeam": "Croatia",
+    "awayTeam": "Ghana",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group L",
+    "homeTeam": "Croatia",
+    "awayTeam": "Panama",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group L",
+    "homeTeam": "Ghana",
+    "awayTeam": "Panama",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  }
+]

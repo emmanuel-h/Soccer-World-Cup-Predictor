@@ -1,0 +1,50 @@
+[
+  {
+    "group": "Group A",
+    "homeTeam": "Mexico",
+    "awayTeam": "South Africa",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group A",
+    "homeTeam": "Mexico",
+    "awayTeam": "South Korea",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group A",
+    "homeTeam": "Mexico",
+    "awayTeam": "Czech Republic",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group A",
+    "homeTeam": "South Africa",
+    "awayTeam": "South Korea",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group A",
+    "homeTeam": "South Africa",
+    "awayTeam": "Czech Republic",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group A",
+    "homeTeam": "South Korea",
+    "awayTeam": "Czech Republic",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  }
+]

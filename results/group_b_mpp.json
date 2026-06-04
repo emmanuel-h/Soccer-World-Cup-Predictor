@@ -1,0 +1,50 @@
+[
+  {
+    "group": "Group B",
+    "homeTeam": "Canada",
+    "awayTeam": "Bosnia and Herzegovina",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group B",
+    "homeTeam": "Canada",
+    "awayTeam": "Qatar",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group B",
+    "homeTeam": "Canada",
+    "awayTeam": "Switzerland",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group B",
+    "homeTeam": "Bosnia and Herzegovina",
+    "awayTeam": "Qatar",
+    "homeScore": 1,
+    "awayScore": 2,
+    "originPage": "home"
+  },
+  {
+    "group": "Group B",
+    "homeTeam": "Bosnia and Herzegovina",
+    "awayTeam": "Switzerland",
+    "homeScore": 1,
+    "awayScore": 2,
+    "originPage": "home"
+  },
+  {
+    "group": "Group B",
+    "homeTeam": "Qatar",
+    "awayTeam": "Switzerland",
+    "homeScore": 1,
+    "awayScore": 2,
+    "originPage": "home"
+  }
+]

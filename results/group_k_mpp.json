@@ -1,0 +1,50 @@
+[
+  {
+    "group": "Group K",
+    "homeTeam": "Portugal",
+    "awayTeam": "DR Congo",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group K",
+    "homeTeam": "Portugal",
+    "awayTeam": "Uzbekistan",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group K",
+    "homeTeam": "Portugal",
+    "awayTeam": "Colombia",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group K",
+    "homeTeam": "DR Congo",
+    "awayTeam": "Uzbekistan",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group K",
+    "homeTeam": "DR Congo",
+    "awayTeam": "Colombia",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group K",
+    "homeTeam": "Uzbekistan",
+    "awayTeam": "Colombia",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "group": "Group E",
+    "homeTeam": "Germany",
+    "awayTeam": "Ivory Coast",
+    "homeScore": 1,
+    "awayScore": 2,
+    "originPage": "home"
+  },
+  {
+    "group": "Group E",
+    "homeTeam": "Germany",
+    "awayTeam": "Ecuador",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group E",
+    "homeTeam": "Germany",
+    "awayTeam": "Curaçao",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group E",
+    "homeTeam": "Ivory Coast",
+    "awayTeam": "Ecuador",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group E",
+    "homeTeam": "Ivory Coast",
+    "awayTeam": "Curaçao",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group E",
+    "homeTeam": "Ecuador",
+    "awayTeam": "Curaçao",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  }
+]

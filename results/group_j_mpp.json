@@ -1,0 +1,50 @@
+[
+  {
+    "group": "Group J",
+    "homeTeam": "Argentina",
+    "awayTeam": "Algeria",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group J",
+    "homeTeam": "Argentina",
+    "awayTeam": "Austria",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group J",
+    "homeTeam": "Argentina",
+    "awayTeam": "Jordan",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group J",
+    "homeTeam": "Algeria",
+    "awayTeam": "Austria",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group J",
+    "homeTeam": "Algeria",
+    "awayTeam": "Jordan",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group J",
+    "homeTeam": "Austria",
+    "awayTeam": "Jordan",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  }
+]

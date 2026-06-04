@@ -1,5 +1,7 @@
-.claude/settings.local.json
+.claude/
 __pycache__/
 *.pyc
 *.pyo
 .env
+.mpp_tokens.json
+results/mpp_calendar_lookup.json

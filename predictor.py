@@ -5,7 +5,7 @@ Models: exponential time-decay · Dixon-Coles correction · Bayesian MC
 Data  : https://github.com/martj42/international_results  (CC0)
 """
 
-import argparse, csv, difflib, io, itertools, math, pathlib, random, sys, urllib.request
+import argparse, csv, difflib, io, itertools, json, math, pathlib, random, sys, urllib.request
 from typing import Optional
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -427,21 +427,106 @@ def write_matches_csv(path: str, group: Optional[str], predictions: list[dict]):
             ])
 
 
+def _predictions_to_records(group: Optional[str], predictions: list[dict]) -> list[dict]:
+    records = []
+    for i, p in enumerate(predictions, 1):
+        hg, ag = p["definitive_score"]
+        records.append({
+            "group":        group or "",
+            "match":        i,
+            "homeTeam":     p["home"],
+            "awayTeam":     p["away"],
+            "expGoalsHome": round(p["lam_h"], 2),
+            "expGoalsAway": round(p["lam_a"], 2),
+            "homeScore":    hg,
+            "awayScore":    ag,
+            "pHome":        round(p["p_home"] * 100, 1),
+            "pDraw":        round(p["p_draw"] * 100, 1),
+            "pAway":        round(p["p_away"] * 100, 1),
+            "prediction":   p["result"],
+        })
+    return records
+
+
+def write_matches_json(path: str, group: Optional[str], predictions: list[dict]):
+    """Merge match prediction records into a JSON file (array, append-safe)."""
+    file = pathlib.Path(path)
+    existing: list = json.loads(file.read_text(encoding="utf-8")) if file.exists() and file.stat().st_size else []
+    existing.extend(_predictions_to_records(group, predictions))
+    file.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def write_matches_mpp(path: str, group: Optional[str], predictions: list[dict]):
+    """
+    Export predictions in MPP push format: array of objects ready for
+    PATCH /user-match-forecasts/entity/{scope}/match/{matchId}.
+    Each entry contains the metadata needed to match against the MPP calendar.
+    """
+    file = pathlib.Path(path)
+    existing: list = json.loads(file.read_text(encoding="utf-8")) if file.exists() and file.stat().st_size else []
+    for p in predictions:
+        hg, ag = p["definitive_score"]
+        existing.append({
+            "group":      group or "",
+            "homeTeam":   p["home"],
+            "awayTeam":   p["away"],
+            "homeScore":  hg,
+            "awayScore":  ag,
+            "originPage": "home",
+        })
+    file.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="World Cup 2026 Group Predictor",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="Example:\n  python predictor.py Mexico \"South Africa\" \"South Korea\" \"Czech Republic\"",
+        epilog=(
+            "Examples:\n"
+            "  python predictor.py Mexico \"South Africa\" \"South Korea\" \"Czech Republic\"\n"
+            "  python predictor.py --output-format csv,json --output-dir results/ "
+            "--group \"Group A\" Mexico \"South Africa\" \"South Korea\" \"Czech Republic\"\n"
+            "  python predictor.py --output-format mpp --output-dir results/ "
+            "--group \"Group A\" Mexico \"South Africa\" \"South Korea\" \"Czech Republic\""
+        ),
     )
     parser.add_argument("teams", nargs="+", metavar="TEAM",
                         help="Teams in the group (at least 2)")
-    parser.add_argument("--matches-csv", metavar="FILE",
-                        help="Append match predictions as CSV rows to FILE")
-    parser.add_argument("--group", metavar="NAME",
-                        help="Group label written into the CSV (e.g. 'Group A')")
+
+    out_group = parser.add_argument_group("output")
+    out_group.add_argument(
+        "--output-format", metavar="FORMAT",
+        default="csv",
+        help=(
+            "Comma-separated list of output formats: csv, json, mpp (default: csv). "
+            "'mpp' produces a JSON file ready for mpp_push.py."
+        ),
+    )
+    out_group.add_argument(
+        "--output-dir", metavar="DIR",
+        help="Directory where output files are written (uses group name for filename).",
+    )
+    out_group.add_argument(
+        "--output-stem", metavar="STEM",
+        help="Base filename (without extension) for output files. "
+             "Overrides the auto-name derived from --group.",
+    )
+    # Legacy flag kept for backward compatibility
+    out_group.add_argument("--matches-csv", metavar="FILE",
+                           help=argparse.SUPPRESS)
+    out_group.add_argument("--group", metavar="NAME",
+                           help="Group label written into output files (e.g. 'Group A')")
+
     args = parser.parse_args()
     if len(args.teams) < 2:
         parser.error("Provide at least 2 teams.")
+
+    args.output_formats = {f.strip().lower() for f in args.output_format.split(",")}
+    unknown = args.output_formats - {"csv", "json", "mpp"}
+    if unknown:
+        parser.error(f"Unknown output format(s): {', '.join(sorted(unknown))}. "
+                     "Choose from: csv, json, mpp")
+
     return args
 
 
@@ -475,12 +560,35 @@ def generate_fixtures(teams: list[str]) -> list[tuple]:
             enumerate(itertools.combinations(teams, 2), 1)]
 
 
+def _resolve_output_paths(args) -> dict[str, pathlib.Path]:
+    """
+    Return a mapping of format -> Path for each requested output format.
+    Priority: --output-stem > --output-dir+group > --matches-csv (legacy).
+    """
+    paths: dict[str, pathlib.Path] = {}
+    ext_map = {"csv": ".csv", "json": ".json", "mpp": "_mpp.json"}
+
+    if args.output_stem:
+        stem = pathlib.Path(args.output_stem)
+        for fmt in args.output_formats:
+            paths[fmt] = stem.with_suffix("").parent / (stem.stem + ext_map[fmt])
+    elif args.output_dir:
+        out_dir = pathlib.Path(args.output_dir)
+        slug = (args.group or "predictions").lower().replace(" ", "_")
+        for fmt in args.output_formats:
+            paths[fmt] = out_dir / (slug + ext_map[fmt])
+    elif args.matches_csv and "csv" in args.output_formats:
+        paths["csv"] = pathlib.Path(args.matches_csv)
+
+    return paths
+
+
 def main():
     args  = parse_args()
     teams = args.teams
     check_teams(teams, load_known_teams())
-    matches_csv = args.matches_csv
     group_label = args.group
+    output_paths = _resolve_output_paths(args)
     fixtures = generate_fixtures(teams)
 
     print(f"\n{BAR}")
@@ -515,9 +623,15 @@ def main():
         predictions.append(p)
         print_match(p, label)
 
-    if matches_csv:
-        write_matches_csv(matches_csv, group_label, predictions)
-        print(f"\n  Match data written to {matches_csv}")
+    writers = {
+        "csv":  lambda path: write_matches_csv(str(path), group_label, predictions),
+        "json": lambda path: write_matches_json(path, group_label, predictions),
+        "mpp":  lambda path: write_matches_mpp(path, group_label, predictions),
+    }
+    for fmt, path in output_paths.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        writers[fmt](path)
+        print(f"\n  [{fmt.upper()}] written → {path}")
 
     # 4 ── group advancement
     print(f"\n[4/4] Simulating group advancement  ({N_GROUP_SIM:,} full-group runs) …")

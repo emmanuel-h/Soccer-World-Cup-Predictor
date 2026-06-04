@@ -1,0 +1,50 @@
+[
+  {
+    "group": "Group H",
+    "homeTeam": "Spain",
+    "awayTeam": "Cape Verde",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group H",
+    "homeTeam": "Spain",
+    "awayTeam": "Saudi Arabia",
+    "homeScore": 2,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group H",
+    "homeTeam": "Spain",
+    "awayTeam": "Uruguay",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group H",
+    "homeTeam": "Cape Verde",
+    "awayTeam": "Saudi Arabia",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group H",
+    "homeTeam": "Cape Verde",
+    "awayTeam": "Uruguay",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group H",
+    "homeTeam": "Saudi Arabia",
+    "awayTeam": "Uruguay",
+    "homeScore": 0,
+    "awayScore": 0,
+    "originPage": "home"
+  }
+]

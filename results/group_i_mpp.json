@@ -1,0 +1,50 @@
+[
+  {
+    "group": "Group I",
+    "homeTeam": "France",
+    "awayTeam": "Senegal",
+    "homeScore": 1,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group I",
+    "homeTeam": "France",
+    "awayTeam": "Iraq",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group I",
+    "homeTeam": "France",
+    "awayTeam": "Norway",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group I",
+    "homeTeam": "Senegal",
+    "awayTeam": "Iraq",
+    "homeScore": 1,
+    "awayScore": 0,
+    "originPage": "home"
+  },
+  {
+    "group": "Group I",
+    "homeTeam": "Senegal",
+    "awayTeam": "Norway",
+    "homeScore": 2,
+    "awayScore": 1,
+    "originPage": "home"
+  },
+  {
+    "group": "Group I",
+    "homeTeam": "Iraq",
+    "awayTeam": "Norway",
+    "homeScore": 0,
+    "awayScore": 1,
+    "originPage": "home"
+  }
+]
