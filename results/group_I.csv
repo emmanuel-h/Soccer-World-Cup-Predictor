@@ -1,5 +1,5 @@
 Group,Match,HomeTeam,AwayTeam,ExpGoalsHome,ExpGoalsAway,DefinitiveScore,P_Home,P_Draw,P_Away,Prediction
-Group I,1,France,Senegal,1.14,1.22,0-1,30.9,34.5,34.6,Senegal WIN
+Group I,1,France,Senegal,1.14,1.22,1-1,30.9,34.5,34.6,DRAW
 Group I,2,France,Iraq,1.53,0.82,1-0,51.2,31.8,17.1,France WIN
 Group I,3,France,Norway,1.66,1.48,2-1,39.4,28.8,31.7,France WIN
 Group I,4,Senegal,Iraq,1.35,0.63,1-0,51.5,34.1,14.4,Senegal WIN

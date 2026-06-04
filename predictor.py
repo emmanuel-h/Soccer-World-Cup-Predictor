@@ -32,7 +32,8 @@ DC_RHO         = -0.25
 # Win must exceed P_draw by this margin; prevents 0.1% edges from always overriding a draw.
 DRAW_BIAS      = 0.04
 
-HOME_ADVANTAGE = 1.08    # neutral WC venue → modest edge for "home" ordering
+HOME_ADVANTAGE  = 1.08   # applied only when a host nation plays
+WC2026_HOSTS    = {"Mexico", "Canada", "United States"}
 
 N_MATCH_SIM    = 30_000  # MC runs per match  (win/draw/loss + scoreline %)
 N_GROUP_SIM    = 25_000  # MC runs for group advancement probabilities
@@ -217,22 +218,32 @@ def h2h_stats(data: list[dict], t1: str, t2: str) -> tuple | None:
 
 # ── Per-match prediction ───────────────────────────────────────────────────────
 
+def _host_multipliers(home, away):
+    """Return (ha_h, ha_a): HOME_ADVANTAGE for whichever team is a WC2026 host, else 1.0."""
+    return (
+        HOME_ADVANTAGE if home in WC2026_HOSTS else 1.0,
+        HOME_ADVANTAGE if away in WC2026_HOSTS else 1.0,
+    )
+
+
 def _noisy_lambdas(attack, defense, sigma, global_avg, home, away):
     """Sample one set of noisy expected goals (log-normal perturbation)."""
+    ha_h, ha_a = _host_multipliers(home, away)
     att_h = attack[home] * math.exp(random.gauss(0, sigma[home]))
     def_a = defense[away] * math.exp(random.gauss(0, sigma[away]))
     att_a = attack[away]  * math.exp(random.gauss(0, sigma[away]))
     def_h = defense[home] * math.exp(random.gauss(0, sigma[home]))
-    lh = max(0.20, min(att_h * def_a * global_avg * HOME_ADVANTAGE, 7.0))
-    la = max(0.20, min(att_a * def_h * global_avg,                   7.0))
+    lh = max(0.20, min(att_h * def_a * global_avg * ha_h, 7.0))
+    la = max(0.20, min(att_a * def_h * global_avg * ha_a, 7.0))
     return lh, la
 
 
 def predict(data, attack, defense, sigma, global_avg, home, away) -> dict:
     """Two-track: analytical DC grid for outcome/probabilities; MC for scoreline distribution."""
+    ha_h, ha_a = _host_multipliers(home, away)
     # Point-estimate lambdas (for analytical DC scoreline)
-    lam_h = max(0.3, min(attack[home] * defense[away] * global_avg * HOME_ADVANTAGE, 7.0))
-    lam_a = max(0.3, min(attack[away] * defense[home] * global_avg,                   7.0))
+    lam_h = max(0.3, min(attack[home] * defense[away] * global_avg * ha_h, 7.0))
+    lam_a = max(0.3, min(attack[away] * defense[home] * global_avg * ha_a, 7.0))
 
     # Analytical DC-corrected probabilities and most-likely score
     grid          = build_dc_grid(lam_h, lam_a)
