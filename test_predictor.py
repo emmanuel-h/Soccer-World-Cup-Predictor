@@ -201,9 +201,9 @@ class TestDeterministicStandings(unittest.TestCase):
 
     def setUp(self):
         self.predictions = [
-            {"home": "A", "away": "B", "dc_score": (2, 1)},  # A wins
-            {"home": "A", "away": "C", "dc_score": (1, 1)},  # draw
-            {"home": "B", "away": "C", "dc_score": (0, 1)},  # C wins
+            {"home": "A", "away": "B", "definitive_score": (2, 1)},  # A wins
+            {"home": "A", "away": "C", "definitive_score": (1, 1)},  # draw
+            {"home": "B", "away": "C", "definitive_score": (0, 1)},  # C wins
         ]
 
     def test_points(self):

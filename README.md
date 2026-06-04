@@ -29,7 +29,8 @@ bash run_all_groups.sh
 Reads every file in `group_stage/`, runs the predictor for each group, and
 writes one CSV per group to `results/group_<X>.csv`.
 
-Each CSV has the columns: `Group, Rank, Team, MP, W, D, L, GF, GA, GD, Pts, Adv%`
+Each CSV has the columns:
+`Group, Match, HomeTeam, AwayTeam, ExpGoalsHome, ExpGoalsAway, DefinitiveScore, P_Home, P_Draw, P_Away, Prediction`
 
 Pre-computed results for WC 2026 are already committed under [`results/`](results/).
 
@@ -93,7 +94,7 @@ Poisson probability matrix and finding its peak.
 
 ---
 
-### 3 · Dixon-Coles correction (ρ = −0.10)
+### 3 · Dixon-Coles correction (ρ = −0.25)
 
 Pure independent Poisson overestimates the probability of 1-0 and 0-1
 results while underestimating 0-0 and 1-1.  Dixon & Coles (1997) introduced
@@ -111,7 +112,17 @@ The adjusted joint PMF is then renormalized to sum to 1.
 
 **Why**: this correction is empirically validated on decades of football data.
 It produces more realistic scoreline distributions, especially for tight,
-low-scoring internationals.
+low-scoring internationals.  ρ = −0.25 (stronger than the original paper's
+−0.13) reflects the more defensive nature of WC group-stage football
+compared to general international fixtures.
+
+#### Draw bias
+
+Even with the DC correction, a deterministic prediction can only call a draw
+when `P_draw` is strictly the highest of the three probabilities — a condition
+that near-even matches rarely satisfy.  A `DRAW_BIAS = 0.04` (4 pp) is
+applied: a win is only predicted if `P_win > P_draw + 0.04`.  This targets
+the ~20–22 % draw rate observed historically in WC group stages.
 
 ---
 
@@ -140,9 +151,8 @@ Where `n_eff = Σ decay_weights` (effective number of recent matches) and
 
 **30 000 simulations per match**: in each run, noisy attack/defense values
 are sampled, new λ values are derived, and goals are drawn from Poisson.
-A partial DC rejection step is applied to low-score cells.  Win / draw / loss
-probabilities and the scoreline frequency table come from aggregating these
-simulations.
+A partial DC rejection step is applied to low-score cells.  These simulations
+are used only for the scoreline frequency table.
 
 **25 000 full-group simulations**: all six group matches are simulated
 end-to-end with independent noisy parameters.  The fraction of runs in which
@@ -155,9 +165,10 @@ each team finishes top-2 becomes its *advancement probability* (Adv%).
 | Field | Source |
 |---|---|
 | **Exp. goals (base)** | Point-estimate λ from decay-weighted strengths |
-| **Most-likely score** | Peak of DC-corrected analytical PMF |
-| **Win / Draw / Away %** | Bayesian MC aggregate |
-| **Top scorelines** | MC frequency table |
+| **Most-likely score** | Peak of the DC-corrected analytical PMF (unconstrained) |
+| **DC probability** | Win / draw / loss from the DC-corrected analytical PMF |
+| **Prediction score** | Most probable scoreline consistent with the predicted outcome |
+| **Top scorelines** | MC frequency table (30 000 runs) |
 | **Adv%** | Full-group MC (25 000 runs) |
 | **σ (noise)** | Per-team strength uncertainty |
 

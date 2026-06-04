@@ -29,6 +29,8 @@ REF_N_EFF      = 40.0
 # Dixon-Coles ρ: corrects Poisson over-prediction of 1-0 / 0-1 at the
 # expense of 0-0 / 1-1.  Negative ρ boosts low-score draws.
 DC_RHO         = -0.25
+# Win must exceed P_draw by this margin; prevents 0.1% edges from always overriding a draw.
+DRAW_BIAS      = 0.04
 
 HOME_ADVANTAGE = 1.08    # neutral WC venue → modest edge for "home" ordering
 
@@ -96,6 +98,7 @@ def build_dc_grid(lam_h: float, lam_a: float, max_g: int = 10) -> dict:
 
 
 def probs_from_grid(grid: dict) -> tuple[float, float, float]:
+    """Marginalize the joint PMF into (P_home_win, P_draw, P_away_win)."""
     p_h = p_d = p_a = 0.0
     for (h, a), p in grid.items():
         if   h > a: p_h += p
@@ -226,17 +229,17 @@ def _noisy_lambdas(attack, defense, sigma, global_avg, home, away):
 
 
 def predict(data, attack, defense, sigma, global_avg, home, away) -> dict:
+    """Two-track: analytical DC grid for outcome/probabilities; MC for scoreline distribution."""
     # Point-estimate lambdas (for analytical DC scoreline)
     lam_h = max(0.3, min(attack[home] * defense[away] * global_avg * HOME_ADVANTAGE, 7.0))
     lam_a = max(0.3, min(attack[away] * defense[home] * global_avg,                   7.0))
 
     # Analytical DC-corrected probabilities and most-likely score
-    grid        = build_dc_grid(lam_h, lam_a)
+    grid          = build_dc_grid(lam_h, lam_a)
     p_h, p_d, p_a = probs_from_grid(grid)
-    dc_score    = most_likely_score(grid)
+    dc_score      = most_likely_score(grid)
 
-    # Bayesian MC: sample noisy strengths → Poisson goals → distributions
-    hw = dw = aw = 0
+    # Bayesian MC: sample noisy strengths → Poisson goals → scoreline distribution
     scorelines: dict[tuple, int] = defaultdict(int)
 
     for _ in range(N_MATCH_SIM):
@@ -251,20 +254,13 @@ def predict(data, attack, defense, sigma, global_avg, home, away) -> dict:
             ag = sample_poisson(la)
 
         scorelines[(hg, ag)] += 1
-        if   hg > ag: hw += 1
-        elif hg == ag: dw += 1
-        else:          aw += 1
-
-    p_hw = hw / N_MATCH_SIM
-    p_dw = dw / N_MATCH_SIM
-    p_aw = aw / N_MATCH_SIM
 
     top5 = sorted(scorelines.items(), key=lambda x: -x[1])[:5]
 
-    # DC analytical probs (not MC) — MC soft-rejection never boosts tau>1 draws.
-    if p_h >= p_a and p_h >= p_d:
+    # Analytical probs drive the outcome: MC soft-rejection never boosts tau>1 draws.
+    if p_h >= p_a and p_h >= p_d + DRAW_BIAS:
         outcome, result = "home", f"{home} WIN"
-    elif p_a >= p_h and p_a >= p_d:
+    elif p_a >= p_h and p_a >= p_d + DRAW_BIAS:
         outcome, result = "away", f"{away} WIN"
     else:
         outcome, result = "draw", "DRAW"
