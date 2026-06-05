@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-World Cup 2026 – Group Predictor  (v2)
-Models: exponential time-decay · Dixon-Coles correction · Bayesian MC
+World Cup 2026 – Group Predictor  (v3)
+Models: Dixon-Coles MLE · opponent-adjusted ratings · Bayesian MC
 Data  : https://github.com/martj42/international_results  (CC0)
 """
 
@@ -44,10 +44,10 @@ DC_RHO    = -0.25
 # Win/draw decision threshold applied to the analytical probabilities.
 # Positive: a win is predicted only if P_win > P_draw + DRAW_BIAS (conservative, more draws).
 # Negative: a win is predicted even when P_win is up to |DRAW_BIAS| below P_draw (fewer draws).
-# Calibrated 2025-06: DRAW_BIAS = -0.010 targets the ~21.9 % draw rate observed in
-# WC 2010-2022 group stages.  DC_RHO=-0.25 inflates draw probabilities, so a small
-# negative bias is needed to match historical draw frequency.
-DRAW_BIAS = -0.010
+# Calibrated 2026-06 (MLE strengths): DRAW_BIAS = +0.050 targets the ~21.9 % draw rate observed
+# in WC 2010-2022 group stages.  MLE produces more extreme win probabilities than raw averages,
+# so a positive bias is needed to recover the historical draw frequency.
+DRAW_BIAS = 0.050
 
 # Tournament-type multipliers applied on top of time-decay.
 # Competitive matches (WC, continental championships) are stronger signals than
@@ -191,107 +191,19 @@ def _tournament_weight(tournament: str) -> float:
     return 1.0
 
 
-# ── Team strength estimation ───────────────────────────────────────────────────
-
-def _team_weighted_stats(
-    recent: list[dict], team: str, today: datetime
-) -> tuple[float, float, float]:
-    """Decay- and tournament-weighted (scored, conceded, n_eff) for one team."""
-    w_scored = w_conceded = n_eff = 0.0
-    for r in recent:
-        age = (today - r["date"]).days
-        tw  = _tournament_weight(r.get("tournament", ""))
-        w   = math.exp(-DECAY_LAMBDA * age) * tw
-        if r["home_team"] == team:
-            w_scored   += w * r["home_score"]
-            w_conceded += w * r["away_score"]
-            n_eff      += w
-        elif r["away_team"] == team:
-            w_scored   += w * r["away_score"]
-            w_conceded += w * r["home_score"]
-            n_eff      += w
-    return w_scored, w_conceded, n_eff
-
-
-def _compute_global_raw_pool(
-    recent: list[dict], today: datetime
-) -> tuple[dict, dict, float]:
-    """
-    Single-pass opponent-anchor computation for ALL teams in the dataset.
-    Returns (attack_raw, defense_raw, global_avg) with tournament + decay weighting.
-    Used as opponent-quality reference in the adjusted strength pass.
-    """
-    w_scored:   dict[str, float] = defaultdict(float)
-    w_conceded: dict[str, float] = defaultdict(float)
-    n_eff:      dict[str, float] = defaultdict(float)
-    tot_wg = tot_w = 0.0
-
-    for r in recent:
-        age = (today - r["date"]).days
-        tw  = _tournament_weight(r.get("tournament", ""))
-        w   = math.exp(-DECAY_LAMBDA * age) * tw
-        tot_wg += w * (r["home_score"] + r["away_score"])
-        tot_w  += w * 2
-        ht, at = r["home_team"], r["away_team"]
-        w_scored[ht]   += w * r["home_score"]
-        w_conceded[ht] += w * r["away_score"]
-        n_eff[ht]      += w
-        w_scored[at]   += w * r["away_score"]
-        w_conceded[at] += w * r["home_score"]
-        n_eff[at]      += w
-
-    global_avg = tot_wg / tot_w if tot_w else 1.3
-    att, dff = {}, {}
-    for team, ne in n_eff.items():
-        if ne > 0 and global_avg > 0:
-            att[team] = (w_scored[team]   / ne) / global_avg
-            dff[team] = (w_conceded[team] / ne) / global_avg
-        else:
-            att[team] = dff[team] = 1.0
-    return att, dff, global_avg
-
-
-def _team_opp_adjusted_stats(
-    recent: list[dict], team: str, today: datetime,
-    opp_att: dict, opp_def: dict,
-) -> tuple[float, float, float]:
-    """
-    Opponent-quality-adjusted weighted stats.
-    Scoring against a strong defense earns more credit; conceding to a weak
-    attack is penalised less.  Uses the raw global pool as opponent anchors.
-    """
-    w_scored = w_conceded = n_eff = 0.0
-    for r in recent:
-        age = (today - r["date"]).days
-        tw  = _tournament_weight(r.get("tournament", ""))
-        w   = math.exp(-DECAY_LAMBDA * age) * tw
-        if r["home_team"] == team:
-            opp   = r["away_team"]
-            adj_s = r["home_score"] / max(opp_def.get(opp, 1.0), 0.3)
-            adj_c = r["away_score"] / max(opp_att.get(opp, 1.0), 0.3)
-        elif r["away_team"] == team:
-            opp   = r["home_team"]
-            adj_s = r["away_score"] / max(opp_def.get(opp, 1.0), 0.3)
-            adj_c = r["home_score"] / max(opp_att.get(opp, 1.0), 0.3)
-        else:
-            continue
-        w_scored   += w * adj_s
-        w_conceded += w * adj_c
-        n_eff      += w
-    return w_scored, w_conceded, n_eff
-
+# ── Team strength estimation (Dixon-Coles MLE) ────────────────────────────────
 
 def compute_strengths(
     data: list[dict], teams: list[str], today: Optional[datetime] = None
 ) -> tuple[dict, dict, dict, float]:
     """
-    Tournament-weighted, opponent-quality-adjusted attack/defense strengths.
+    Opponent-quality-adjusted strengths via Dixon-Coles MLE.
 
-    Pass 1 — global raw pool: single scan of all recent matches to build
-    opponent-anchor ratings for every team in the dataset.
-
-    Pass 2 — adjusted ratings: for each target team, re-weight each match
-    contribution by the opponent's defensive/offensive quality from Pass 1.
+    Jointly fits attack and defense multipliers for every team present in the
+    data window using iterative multiplicative updates (Poisson GLM EM).  All
+    teams are optimised simultaneously, so opponent quality is naturally
+    accounted for — scoring against a strong defense earns more credit than
+    scoring against a weak one, with no one-pass circularity issue.
 
     Returns
     -------
@@ -303,28 +215,70 @@ def compute_strengths(
     cutoff = today - timedelta(days=HISTORY_YEARS * 365.25)
     recent = [r for r in data if r["date"] >= cutoff]
 
-    # Pass 1: global pool for tournament-weighted global_avg (and opponent anchors if needed)
-    _, _, global_avg = _compute_global_raw_pool(recent, today)
+    match_data: list[tuple] = []
+    for r in recent:
+        age = (today - r["date"]).days
+        tw  = _tournament_weight(r.get("tournament", ""))
+        w   = math.exp(-DECAY_LAMBDA * age) * tw
+        match_data.append((r["home_team"], r["away_team"],
+                           r["home_score"], r["away_score"], w))
+
+    all_teams = sorted(set(t for ht, at, *_ in match_data for t in (ht, at)))
+
+    total_wg = total_w = 0.0
+    for _, _, hg, ag, w in match_data:
+        total_wg += w * (hg + ag)
+        total_w  += w * 2
+    mu = total_wg / total_w if total_w else 1.3
+
+    att = {t: 1.0 for t in all_teams}
+    dff = {t: 1.0 for t in all_teams}
+
+    for _ in range(100):
+        att_num: dict[str, float] = defaultdict(float)
+        att_den: dict[str, float] = defaultdict(float)
+        dff_num: dict[str, float] = defaultdict(float)
+        dff_den: dict[str, float] = defaultdict(float)
+
+        for ht, at, hg, ag, w in match_data:
+            lh = att[ht] * dff[at] * mu
+            la = att[at] * dff[ht] * mu
+            att_num[ht] += w * hg;  att_den[ht] += w * lh
+            att_num[at] += w * ag;  att_den[at] += w * la
+            dff_num[at] += w * hg;  dff_den[at] += w * lh
+            dff_num[ht] += w * ag;  dff_den[ht] += w * la
+
+        for t in all_teams:
+            if att_den[t] > 0:
+                att[t] *= att_num[t] / att_den[t]
+            if dff_den[t] > 0:
+                dff[t] *= dff_num[t] / dff_den[t]
+
+        # Normalise: mean(att) = mean(dff) = 1 for interpretability
+        n = len(all_teams)
+        att_mean = sum(att[t] for t in all_teams) / n
+        dff_mean = sum(dff[t] for t in all_teams) / n
+        if att_mean > 0 and dff_mean > 0:
+            for t in all_teams:
+                att[t] /= att_mean
+                dff[t] /= dff_mean
+            mu *= att_mean * dff_mean
+
+    n_eff_team: dict[str, float] = defaultdict(float)
+    for ht, at, _, _, w in match_data:
+        n_eff_team[ht] += w
+        n_eff_team[at] += w
 
     attack:  dict[str, float] = {}
     defense: dict[str, float] = {}
     sigma:   dict[str, float] = {}
-
-    # Pass 2: per-team stats using tournament-weighted decay
-    # Note: _team_opp_adjusted_stats (opponent-quality adjustment) is available
-    # but disabled here — one-pass circular compression degrades same-confederation
-    # groups (e.g. CONMEBOL teams all face each other, flattening inter-group spreads).
-    # Tournament weighting alone captures the key signal improvements.
     for team in teams:
-        w_scored, w_conceded, n_eff = _team_weighted_stats(recent, team, today)
-        if n_eff > 0 and global_avg > 0:
-            attack[team]  = (w_scored   / n_eff) / global_avg
-            defense[team] = (w_conceded / n_eff) / global_avg
-        else:
-            attack[team] = defense[team] = 1.0
-        sigma[team] = max(0.05, BASE_SIGMA / math.sqrt(max(1.0, n_eff / REF_N_EFF)))
+        attack[team]  = att.get(team, 1.0)
+        defense[team] = dff.get(team, 1.0)
+        ne = n_eff_team.get(team, 0.0)
+        sigma[team] = max(0.05, BASE_SIGMA / math.sqrt(max(1.0, ne / REF_N_EFF)))
 
-    return attack, defense, sigma, global_avg
+    return attack, defense, sigma, mu
 
 
 # ── Head-to-head helper ────────────────────────────────────────────────────────
@@ -824,7 +778,7 @@ def main():
     print("\n[1/4] Loading historical data …")
     data = load_data()
 
-    print("\n[2/4] Computing decay-weighted team strengths …")
+    print("\n[2/4] Computing opponent-adjusted strengths (Dixon-Coles MLE) …")
     attack, defense, sigma, global_avg = compute_strengths(data, teams)
     print(f"  Global avg goals / team / match : {global_avg:.3f}")
     _display_strengths(teams, attack, defense, sigma)
