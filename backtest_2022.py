@@ -12,6 +12,7 @@ Modes
 import itertools
 import sys
 from datetime import datetime
+from typing import Optional
 
 import predictor as P
 
@@ -309,6 +310,8 @@ def run_backtest(
     data: list[dict],
     use_stakes: bool = True,
     use_prior: bool = True,
+    draw_coeffs: Optional[list[float]] = None,
+    draw_threshold: float = P.DRAW_CLF_THRESHOLD,
 ) -> list[dict]:
     cutoff_data = [r for r in data if r["date"] < CUTOFF]
 
@@ -331,19 +334,22 @@ def run_backtest(
                     cutoff_data, attack, defense, sigma, global_avg,
                     home, away, today=CUTOFF,
                     stake_home=sh, stake_away=sa,
+                    draw_coeffs=draw_coeffs, draw_threshold=draw_threshold,
                 )
                 actual, score = WC2022_RESULTS[(home, away)]
                 code    = outcome_code(pred)
                 correct = code == actual
                 mark    = "✓" if correct else "✗"
                 ph, pd, pa = pred["p_home"], pred["p_draw"], pred["p_away"]
+                clf_tag = (f"  clf={pred['clf_p_draw']*100:.0f}%"
+                           if pred.get("clf_p_draw") is not None else "")
                 stake_tag = (f"  [stake {sh:.2f}/{sa:.2f}]"
                              if (sh != 1.0 or sa != 1.0) else "")
                 print(
                     f"    {mark}  {home:<22} vs {away:<22} "
                     f"Pred: {code}  Actual: {actual} ({score})"
                     f"  [{ph*100:.0f}%/{pd*100:.0f}%/{pa*100:.0f}%]"
-                    f"{stake_tag}"
+                    f"{clf_tag}{stake_tag}"
                 )
                 results.append({
                     "group":     group_name,
@@ -433,8 +439,7 @@ def main():
     print(f"\n{BAR}")
     print("  WC 2022 GROUP STAGE BACKTEST")
     print(f"  Cut-off: {CUTOFF.date()}  |  λ={P.DECAY_LAMBDA}  "
-          f"half-life≈{round(0.693/P.DECAY_LAMBDA/365.25, 1)}y  |  DRAW_BIAS={P.DRAW_BIAS}  "
-          f"DRAW_CONF={P.DRAW_CONFIDENCE_THRESHOLD}")
+          f"half-life≈{round(0.693/P.DECAY_LAMBDA/365.25, 1)}y  |  DRAW_BIAS={P.DRAW_BIAS}")
     print(BAR)
 
     print("\n[1] Loading historical data …")
@@ -452,15 +457,24 @@ def main():
         print("\nUpdate DRAW_BIAS in predictor.py with the value marked ← above.")
         return
 
+    # ── Train draw classifier (competitive matches before 2022-11-19) ─────────
+    print("\n[3] Training draw classifier (logistic regression, competitive matches) …")
+    draw_coeffs, draw_threshold = P.fit_draw_classifier(data, today=CUTOFF)
+    print(f"  β = [{', '.join(f'{b:.3f}' for b in draw_coeffs)}]"
+          f"   threshold = {draw_threshold:.3f}")
+
     # ── Full backtest ─────────────────────────────────────────────────────────
-    print(f"\n[3] Running full backtest (48 matches, MC={P.N_MATCH_SIM:,}/match) …")
-    results = run_backtest(data, use_stakes=True)
+    print(f"\n[4] Running full backtest (48 matches, MC={P.N_MATCH_SIM:,}/match) …")
+    results = run_backtest(
+        data, use_stakes=True,
+        draw_coeffs=draw_coeffs, draw_threshold=draw_threshold,
+    )
 
     print_summary(
         results,
         f"BACKTEST SUMMARY — WC 2022 Group Stage  "
         f"(λ={P.DECAY_LAMBDA}  DRAW_BIAS={P.DRAW_BIAS}  "
-        f"DRAW_CONF={P.DRAW_CONFIDENCE_THRESHOLD}  stakes+prior=ON)",
+        f"CLF_THRESH={draw_threshold:.3f}  stakes+prior=ON)",
     )
 
 

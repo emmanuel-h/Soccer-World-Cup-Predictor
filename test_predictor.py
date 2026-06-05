@@ -12,10 +12,13 @@ from io import StringIO
 from unittest.mock import patch
 
 from predictor import (
+    _fit_logistic,
+    _sigmoid,
     build_dc_grid,
     check_teams,
     dc_tau,
     deterministic_standings,
+    draw_clf_prob,
     generate_fixtures,
     h2h_stats,
     load_known_teams,
@@ -300,6 +303,61 @@ class TestMostLikelyScoreForOutcome(unittest.TestCase):
         grid = build_dc_grid(1.5, 1.5)
         h, a = most_likely_score_for_outcome(grid, "draw")
         self.assertEqual(h, a)
+
+
+# ── _sigmoid ──────────────────────────────────────────────────────────────────
+
+class TestSigmoid(unittest.TestCase):
+
+    def test_zero_returns_half(self):
+        self.assertAlmostEqual(_sigmoid(0.0), 0.5)
+
+    def test_large_positive_approaches_one(self):
+        self.assertAlmostEqual(_sigmoid(100.0), 1.0, places=5)
+
+    def test_large_negative_approaches_zero(self):
+        self.assertAlmostEqual(_sigmoid(-100.0), 0.0, places=5)
+
+    def test_known_value(self):
+        import math
+        self.assertAlmostEqual(_sigmoid(1.0), 1 / (1 + math.exp(-1)), places=10)
+
+
+# ── _fit_logistic ──────────────────────────────────────────────────────────────
+
+class TestFitLogistic(unittest.TestCase):
+
+    def test_perfectly_separable_data(self):
+        # Intercept + 1 feature; positives are x>0, negatives x<0
+        X = [[1.0, float(i)] for i in range(-10, 11) if i != 0]
+        y = [1.0 if x[1] > 0 else 0.0 for x in X]
+        coeffs = _fit_logistic(X, y, lr=0.1, n_iter=3000)
+        # Intercept should be near 0, feature coeff should be positive
+        self.assertAlmostEqual(coeffs[0], 0.0, delta=0.3)
+        self.assertGreater(coeffs[1], 1.0)
+
+    def test_returns_correct_length(self):
+        X = [[1.0, 0.5, 0.3] for _ in range(20)]
+        y = [1.0] * 10 + [0.0] * 10
+        coeffs = _fit_logistic(X, y)
+        self.assertEqual(len(coeffs), 3)
+
+
+# ── draw_clf_prob ──────────────────────────────────────────────────────────────
+
+class TestDrawClfProb(unittest.TestCase):
+
+    def test_output_in_zero_one(self):
+        p = draw_clf_prob(1.5, 1.5, 0.28, [-1.0, -1.0, 1.0])
+        self.assertGreaterEqual(p, 0.0)
+        self.assertLessEqual(p, 1.0)
+
+    def test_more_equal_teams_higher_draw_prob(self):
+        # With negative norm_diff coeff, equal teams (norm_diff=0) > mismatched
+        coeffs = [-1.0, -2.0, 2.0]
+        p_equal    = draw_clf_prob(1.5, 1.5, 0.30, coeffs)   # norm_diff = 0
+        p_unequal  = draw_clf_prob(2.5, 0.8, 0.15, coeffs)   # norm_diff > 0
+        self.assertGreater(p_equal, p_unequal)
 
 
 # ── shared fixture for write tests ────────────────────────────────────────────

@@ -224,29 +224,42 @@ compared to general international fixtures.
 #### Draw bias / decision threshold
 
 After computing P_home, P_draw, P_away from the DC grid, the outcome is
-decided by this rule:
+decided by a two-pass rule:
+
+**Pass 1 — Logistic draw classifier (primary):** A logistic regression model
+trained on competitive international matches (WC, continental championships,
+WC qualification, past 8 years) predicts P(draw) from two features:
+
+```
+P(draw) = σ(β₀ + β₁·|λ_h−λ_a|/(λ_h+λ_a) + β₂·P_draw_dc)
+```
+
+- Feature 1: normalized lambda gap — more equal teams → more draws (β₁ < 0)
+- Feature 2: DC draw probability — higher P_draw → more draws (β₂ > 0)
+
+If P_clf(draw) ≥ threshold: predict draw. The threshold is calibrated on
+training data to recover the historical ~21.9 % WC group-stage draw rate.
+
+**Pass 2 — DRAW_BIAS fallback (secondary):** For matches the classifier does
+not flag as draws, the standard bias rule applies:
 
 ```
 if P_win_best > P_draw + DRAW_BIAS:   predict win
 else:                                  predict draw
 ```
 
-`DRAW_BIAS` can be positive (conservative — requires the win to clearly exceed
-the draw before committing) or negative (aggressive — commits to the best
-decisive outcome even when P_draw is marginally higher).
-
 **Calibration** (June 2026, MLE strengths, against WC 2010–2022 group stages):
 
-| Metric | Before (raw averages) | After (MLE) |
-|---|---|---|
-| Historical draw rate (4 WCs) | — | **21.9 %** (target) |
-| Predicted draw rate | 22.9 % | **20.8 %** |
-| DRAW_BIAS | −0.010 | **+0.050** |
+| Metric | Before (raw averages) | DC MLE | + Draw classifier |
+|---|---|---|---|
+| Historical draw rate (4 WCs) | — | **21.9 %** (target) | — |
+| Predicted draw rate | 22.9 % | 20.8 % | **27.1 %** |
+| DRAW_BIAS | −0.010 | +0.050 | **+0.050** |
 
 MLE produces more extreme win probabilities than raw goal averages (because
 opponent quality spreads ratings further apart), so a positive bias
 (`DRAW_BIAS = +0.050`) is needed to recover the historical ~22 % WC group-stage
-draw rate.  Calibration is reproducible via:
+draw rate.  DRAW_BIAS calibration is reproducible via:
 
 ```bash
 python3 backtest_2022.py --calibrate
@@ -379,18 +392,19 @@ python3 backtest_2022.py --calibrate   # fast calibration of DRAW_BIAS (no MC)
 
 **WC 2022 results (λ=0.00127 · DRAW_BIAS=+0.050 · MLE · dead-rubber stakes ON):**
 
-| Metric | Raw averages (old) | DC MLE (current) |
-|---|---|---|
-| Overall accuracy | 39.6 % (19/48) | **47.9 % (23/48)** |
-| Home wins correct | 44 % (8/18) | **67 % (12/18)** |
-| Away wins correct | 40 % (8/20) | **50 % (10/20)** |
-| Draws correct | 30 % (3/10) | 10 % (1/10) |
-| Predicted draw rate | 35.4 % | 10.4 % |
+| Metric | Raw averages | DC MLE | + Draw classifier |
+|---|---|---|---|
+| Overall accuracy | 39.6 % (19/48) | 47.9 % (23/48) | **47.9 % (23/48)** |
+| Home wins correct | 44 % (8/18) | 67 % (12/18) | **67 % (12/18)** |
+| Away wins correct | 40 % (8/20) | 50 % (10/20) | 35 % (7/20) |
+| **Draws correct** | 30 % (3/10) | 10 % (1/10) | **40 % (4/10)** |
+| Predicted draw rate | 35.4 % | 10.4 % | 27.1 % |
 
-Draws remain structurally hard for Poisson-based models: even with correct
-draw-rate calibration in the 2026 predictions, individual draw calls are
-difficult when the model assigns one team a clear probabilistic edge.  The draw
-accuracy trade-off is the expected cost of the large gains in decisive outcomes.
+The draw classifier improves draw accuracy from 10 % to **40 %** by trading
+3 correct away-win predictions for 3 correct draw predictions — overall
+accuracy is maintained at 47.9 %.  Draws that involve a moderate-to-strong
+favourite (e.g. England 0–0 USA, Spain 1–1 Germany) remain hard to predict
+because Poisson models assign them low draw probability.
 
 ---
 
