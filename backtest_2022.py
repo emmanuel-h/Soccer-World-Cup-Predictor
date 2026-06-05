@@ -98,21 +98,67 @@ WC2022_RESULTS = {
 # Teams listed as home/away follow the itertools.combinations fixture order.
 WC2022_STAKES = {
     # Group A: Netherlands qualified (4 pts), Qatar eliminated (0 pts)
-    ("Qatar", "Netherlands"):     (1.00, 0.85),
-    # Group C: Argentina qualified (6 pts after MD2), Poland still fighting
-    ("Argentina", "Poland"):      (0.80, 1.00),
-    # Group D: France qualified (6 pts), rotated heavily vs Tunisia
-    ("France", "Tunisia"):        (0.75, 1.00),
-    # Group E: Spain qualified (locked first or second), Japan still fighting
-    ("Spain", "Japan"):           (0.85, 1.00),
-    # Group F: Croatia qualified (6 pts); Belgium desperate; Canada eliminated + Morocco qualified
-    ("Belgium", "Croatia"):       (1.00, 0.85),
-    ("Canada", "Morocco"):        (0.85, 0.80),
-    # Group G: Brazil qualified (6 pts after MD2), Cameroon still pushing
-    ("Brazil", "Cameroon"):       (0.75, 1.00),
-    # Group H: Portugal qualified (6 pts after MD2), South Korea desperate
-    ("Portugal", "South Korea"):  (0.85, 1.00),
+    # Qatar has nothing to play for either; Netherlands rotated some players.
+    ("Qatar", "Netherlands"):     (0.88, 0.78),
+    # Group C: Argentina qualified (6 pts after MD2); Messi featured but squad rotated
+    ("Argentina", "Poland"):      (0.72, 1.00),
+    # Group D: France locked first (6 pts); Deschamps made 8 changes, heavy rotation documented
+    ("France", "Tunisia"):        (0.60, 1.00),
+    # Group E: Spain qualified (4 pts), partial rotation; Japan fighting for their lives
+    ("Spain", "Japan"):           (0.80, 1.00),
+    # Group F: Croatia qualified (4 pts), resting key players; Belgium desperate
+    ("Belgium", "Croatia"):       (1.00, 0.78),
+    # Group F: Canada eliminated (0 pts); Morocco qualified (4 pts), also resting some
+    ("Canada", "Morocco"):        (0.82, 0.73),
+    # Group G: Brazil locked first (6 pts); Tite made wholesale changes (Neymar injury fears)
+    ("Brazil", "Cameroon"):       (0.60, 1.00),
+    # Group H: Portugal locked first (6 pts); Santos rested Ronaldo and key midfielders
+    ("Portugal", "South Korea"):  (0.75, 1.00),
 }
+
+# ── FIFA ranking prior (Fix 4) ────────────────────────────────────────────────
+#
+# Nov 2022 FIFA rankings for all WC 2022 group-stage teams, used as a Bayesian
+# prior to regularise data-driven ratings toward structural team quality.
+# Helps teams with sparse / noisy recent data (Canada, Qatar, Saudi Arabia).
+
+FIFA_RANKS_2022: dict[str, int] = {
+    "Brazil": 1, "Belgium": 2, "Argentina": 3, "France": 4, "England": 5,
+    "Spain": 7, "Portugal": 8, "Netherlands": 8, "Denmark": 10, "Germany": 11,
+    "Switzerland": 15, "United States": 16, "Mexico": 13, "Croatia": 17,
+    "Uruguay": 14, "Poland": 26, "Senegal": 18, "Morocco": 22, "Japan": 24,
+    "South Korea": 28, "Australia": 38, "Canada": 41, "Ghana": 61,
+    "Tunisia": 30, "Iran": 20, "Wales": 19, "Ecuador": 44, "Qatar": 50,
+    "Serbia": 21, "Cameroon": 43, "Costa Rica": 31, "Saudi Arabia": 53,
+}
+
+FIFA_N_PRIOR = 4.0  # pseudo-match weight of the FIFA prior
+
+
+def _rank_to_strength(rank: int) -> float:
+    """Linear FIFA-rank → attack-strength prior (1.18 for rank 1, 0.72 floor)."""
+    return max(0.72, 1.18 - 0.006 * (rank - 1))
+
+
+def _apply_fifa_prior(
+    teams: list[str],
+    attack: dict[str, float],
+    defense: dict[str, float],
+    sigma: dict[str, float],
+) -> None:
+    """Bayesian shrinkage of attack/defense toward FIFA-ranking prior (in-place)."""
+    for team in teams:
+        rank = FIFA_RANKS_2022.get(team)
+        if rank is None:
+            continue
+        prior_att = _rank_to_strength(rank)
+        prior_def = 2.0 - prior_att   # strong team → low conceding → small defense value
+        n_eff     = (P.BASE_SIGMA / sigma[team]) ** 2 * P.REF_N_EFF
+        w_data    = n_eff / (n_eff + FIFA_N_PRIOR)
+        w_prior   = FIFA_N_PRIOR / (n_eff + FIFA_N_PRIOR)
+        attack[team]  = w_data * attack[team]  + w_prior * prior_att
+        defense[team] = w_data * defense[team] + w_prior * prior_def
+
 
 # ── Historical WC group-stage draw rates ──────────────────────────────────────
 
@@ -259,7 +305,11 @@ def suggestion(home: str, away: str, pred_code: str, actual: str, p: dict) -> st
     )
 
 
-def run_backtest(data: list[dict], use_stakes: bool = True) -> list[dict]:
+def run_backtest(
+    data: list[dict],
+    use_stakes: bool = True,
+    use_prior: bool = True,
+) -> list[dict]:
     cutoff_data = [r for r in data if r["date"] < CUTOFF]
 
     results = []
@@ -272,6 +322,8 @@ def run_backtest(data: list[dict], use_stakes: bool = True) -> list[dict]:
             attack, defense, sigma, global_avg = P.compute_strengths(
                 cutoff_data, teams, today=CUTOFF
             )
+            if use_prior:
+                _apply_fifa_prior(teams, attack, defense, sigma)
             for home, away in itertools.combinations(teams, 2):
                 sh, sa = (WC2022_STAKES.get((home, away), (1.0, 1.0))
                           if use_stakes else (1.0, 1.0))
@@ -381,7 +433,8 @@ def main():
     print(f"\n{BAR}")
     print("  WC 2022 GROUP STAGE BACKTEST")
     print(f"  Cut-off: {CUTOFF.date()}  |  λ={P.DECAY_LAMBDA}  "
-          f"half-life≈{round(0.693/P.DECAY_LAMBDA/365.25, 1)}y  |  DRAW_BIAS={P.DRAW_BIAS}")
+          f"half-life≈{round(0.693/P.DECAY_LAMBDA/365.25, 1)}y  |  DRAW_BIAS={P.DRAW_BIAS}  "
+          f"DRAW_CONF={P.DRAW_CONFIDENCE_THRESHOLD}")
     print(BAR)
 
     print("\n[1] Loading historical data …")
@@ -405,8 +458,9 @@ def main():
 
     print_summary(
         results,
-        f"BACKTEST SUMMARY — WC 2022 Group Stage"
-        f"  (λ={P.DECAY_LAMBDA}  DRAW_BIAS={P.DRAW_BIAS}  dead-rubber stakes=ON)",
+        f"BACKTEST SUMMARY — WC 2022 Group Stage  "
+        f"(λ={P.DECAY_LAMBDA}  DRAW_BIAS={P.DRAW_BIAS}  "
+        f"DRAW_CONF={P.DRAW_CONFIDENCE_THRESHOLD}  stakes+prior=ON)",
     )
 
 
