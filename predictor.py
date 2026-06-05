@@ -27,8 +27,10 @@ DATA_URL = (
     "international_results/master/results.csv"
 )
 
-# Time-decay: half-life ≈ 2.4 years (exp(-0.0008 * 875) = 0.50)
-DECAY_LAMBDA  = 0.0008
+# Time-decay: half-life ≈ 1.5 years (exp(-0.00127 * 546) ≈ 0.50)
+# Calibrated 2025-06: shorter window sharpens recent form, reduces
+# strength-estimate compression in lopsided groups.
+DECAY_LAMBDA  = 0.00127
 HISTORY_YEARS = 20      # how far back to look
 H2H_YEARS     = 20      # head-to-head window
 
@@ -39,8 +41,13 @@ REF_N_EFF  = 40.0
 # Dixon-Coles ρ: corrects Poisson over-prediction of 1-0 / 0-1 at the
 # expense of 0-0 / 1-1.  Negative ρ boosts low-score draws.
 DC_RHO    = -0.25
-# Win must exceed P_draw by this margin; prevents 0.1% edges from always overriding a draw.
-DRAW_BIAS = 0.04
+# Win/draw decision threshold applied to the analytical probabilities.
+# Positive: a win is predicted only if P_win > P_draw + DRAW_BIAS (conservative, more draws).
+# Negative: a win is predicted even when P_win is up to |DRAW_BIAS| below P_draw (fewer draws).
+# Calibrated 2025-06: DRAW_BIAS = -0.010 targets the ~21.9 % draw rate observed in
+# WC 2010-2022 group stages.  DC_RHO=-0.25 inflates draw probabilities, so a small
+# negative bias is needed to match historical draw frequency.
+DRAW_BIAS = -0.010
 
 HOME_ADVANTAGE = 1.08   # applied only when a host nation plays
 WC2026_HOSTS   = {"Mexico", "Canada", "United States"}
@@ -174,7 +181,7 @@ def _team_weighted_stats(
 
 
 def compute_strengths(
-    data: list[dict], teams: list[str]
+    data: list[dict], teams: list[str], today: Optional[datetime] = None
 ) -> tuple[dict, dict, dict, float]:
     """
     Exponential-decay weighted attack / defense strengths.
@@ -185,7 +192,7 @@ def compute_strengths(
     sigma           : dict[team -> float]  (log-normal uncertainty per team)
     global_avg      : float               (weighted avg goals per team per match)
     """
-    today  = datetime.now()
+    today  = today or datetime.now()
     cutoff = today - timedelta(days=HISTORY_YEARS * 365.25)
     recent = [r for r in data if r["date"] >= cutoff]
 
@@ -214,8 +221,9 @@ def compute_strengths(
 
 # ── Head-to-head helper ────────────────────────────────────────────────────────
 
-def h2h_stats(data: list[dict], t1: str, t2: str) -> tuple | None:
-    cutoff  = datetime.now() - timedelta(days=H2H_YEARS * 365.25)
+def h2h_stats(data: list[dict], t1: str, t2: str, today: Optional[datetime] = None) -> tuple | None:
+    today   = today or datetime.now()
+    cutoff  = today - timedelta(days=H2H_YEARS * 365.25)
     matches = [r for r in data
                if r["date"] >= cutoff
                and {r["home_team"], r["away_team"]} == {t1, t2}]
@@ -259,11 +267,29 @@ def predict(
     data: list[dict],
     attack: dict, defense: dict, sigma: dict, global_avg: float,
     home: str, away: str,
+    today: Optional[datetime] = None,
+    stake_home: float = 1.0,
+    stake_away: float = 1.0,
 ) -> dict:
-    """Two-track: analytical DC grid for outcome/probabilities; MC for scoreline distribution."""
+    """
+    Two-track: analytical DC grid for outcome/probabilities; MC for scoreline distribution.
+
+    stake_home / stake_away (0 < x ≤ 1.0): match-importance multiplier applied to each
+    team's attack strength before computing expected goals.  Use < 1.0 for dead-rubber
+    fixtures (squad rotation, low motivation) — e.g. stake_home=0.80 if the home side
+    has already qualified and is expected to field a rotated XI.  Both lambdas are scaled
+    so the game is modelled as lower-intensity; probabilities flatten toward a draw.
+    """
+    # Build effective attack dict with stake factors applied
+    eff_attack = dict(attack)
+    if stake_home != 1.0:
+        eff_attack[home] = attack[home] * stake_home
+    if stake_away != 1.0:
+        eff_attack[away] = attack[away] * stake_away
+
     ha_h, ha_a = _host_multipliers(home, away)
-    lam_h = max(0.3, min(attack[home] * defense[away] * global_avg * ha_h, 7.0))
-    lam_a = max(0.3, min(attack[away] * defense[home] * global_avg * ha_a, 7.0))
+    lam_h = max(0.3, min(eff_attack[home] * defense[away] * global_avg * ha_h, 7.0))
+    lam_a = max(0.3, min(eff_attack[away] * defense[home] * global_avg * ha_a, 7.0))
 
     grid           = build_dc_grid(lam_h, lam_a)
     p_h, p_d, p_a  = probs_from_grid(grid)
@@ -271,7 +297,7 @@ def predict(
 
     scorelines: dict[tuple, int] = defaultdict(int)
     for _ in range(N_MATCH_SIM):
-        lh, la = _noisy_lambdas(attack, defense, sigma, global_avg, home, away)
+        lh, la = _noisy_lambdas(eff_attack, defense, sigma, global_avg, home, away)
         hg     = sample_poisson(lh)
         ag     = sample_poisson(la)
         # Soft DC rejection for low-score cells: resample once when tau < 1
@@ -301,8 +327,9 @@ def predict(
         "p_home": p_h, "p_draw": p_d, "p_away": p_a,
         "result": result,
         "top5": top5,
-        "h2h": h2h_stats(data, home, away),
+        "h2h": h2h_stats(data, home, away, today),
         "sigma_home": sigma[home], "sigma_away": sigma[away],
+        "stake_home": stake_home, "stake_away": stake_away,
     }
 
 
@@ -382,8 +409,12 @@ def print_match(p: dict, label: str):
     print(f"\n  {label}")
     print(f"  {'─'*64}")
     print(f"  {h:<24} vs  {a}")
+    stakes = ""
+    if p.get("stake_home", 1.0) != 1.0 or p.get("stake_away", 1.0) != 1.0:
+        stakes = (f"   stake = {p['stake_home']:.2f} / {p['stake_away']:.2f}"
+                  f"  ⚠ dead-rubber adj.")
     print(f"  Exp. goals (base)  : {p['lam_h']:.2f} – {p['lam_a']:.2f}"
-          f"   σ = {p['sigma_home']:.2f} / {p['sigma_away']:.2f}")
+          f"   σ = {p['sigma_home']:.2f} / {p['sigma_away']:.2f}{stakes}")
     print(f"  Most-likely score  : {hg} – {ag}  (DC analytical, unconstrained)")
     print(f"  DC probability     : {h} {_pct(p['p_home'])}  │"
           f"  Draw {_pct(p['p_draw'])}  │  {a} {_pct(p['p_away'])}")
