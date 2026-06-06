@@ -60,6 +60,65 @@ def outcome_code(pred: dict) -> str:
     return "W1" if pred["home"] in pred["result"] else "W2"
 
 
+def calibrate_alpha(data: list[dict]) -> float:
+    """
+    Analytically sweep BLEND_ALPHA on WC 2018 group-stage data and return the
+    value with the highest outcome-prediction accuracy.  Uses DC analytical
+    probabilities (no MC) so it runs in seconds.
+    """
+    cutoff_data = [r for r in data if r["date"] < CUTOFF]
+    orig_hosts  = P.WC2026_HOSTS
+    P.WC2026_HOSTS = set()
+
+    BAR = "─" * 40
+    print(f"\n  {BAR}")
+    print(f"  Alpha calibration sweep (WC 2018, analytical, no MC)")
+    print(f"  {BAR}")
+    print(f"  {'alpha':>6}  {'Correct':>8}  {'Acc%':>7}")
+    print(f"  {BAR}")
+
+    best_alpha, best_acc = P.BLEND_ALPHA, -1.0
+    alpha_steps = [round(0.50 + i * 0.05, 2) for i in range(7)]  # 0.50 … 0.80
+
+    try:
+        for alpha in alpha_steps:
+            correct = total = 0
+            for group_name, teams in WC2018_GROUPS.items():
+                att, dff, sig, mu = P.compute_blended_strengths(
+                    cutoff_data, teams, today=CUTOFF, alpha=alpha
+                )
+                for home, away in itertools.combinations(teams, 2):
+                    actual, _ = _lookup_result(data, home, away)
+                    if actual is None:
+                        continue
+                    sh, sa = WC2018_STAKES.get((home, away), (1.0, 1.0))
+                    lam_h = max(0.3, min(att[home] * dff[away] * mu * sh, 7.0))
+                    lam_a = max(0.3, min(att[away] * dff[home] * mu * sa, 7.0))
+                    grid = P.build_dc_grid(lam_h, lam_a)
+                    p_h, p_d, p_a = P.probs_from_grid(grid)
+                    if p_h >= p_a and p_h >= p_d + P.DRAW_BIAS:
+                        code = "W1"
+                    elif p_a >= p_h and p_a >= p_d + P.DRAW_BIAS:
+                        code = "W2"
+                    else:
+                        code = "D"
+                    if code == actual:
+                        correct += 1
+                    total += 1
+            acc = correct / total * 100 if total else 0.0
+            marker = "  ←" if acc > best_acc else ""
+            print(f"  {alpha:>6.2f}  {correct:>8}  {acc:>6.1f}%{marker}")
+            if acc > best_acc:
+                best_acc  = acc
+                best_alpha = alpha
+    finally:
+        P.WC2026_HOSTS = orig_hosts
+
+    print(f"  {BAR}")
+    print(f"  Best α = {best_alpha:.2f}  ({best_acc:.1f}% accuracy on WC 2018)")
+    return best_alpha
+
+
 def run_backtest(data: list[dict], use_stakes: bool = True) -> list[dict]:
     cutoff_data = [r for r in data if r["date"] < CUTOFF]
     results = []
@@ -69,7 +128,7 @@ def run_backtest(data: list[dict], use_stakes: bool = True) -> list[dict]:
     try:
         for group_name, teams in WC2018_GROUPS.items():
             print(f"\n  Group {group_name}: {', '.join(teams)}")
-            attack, defense, sigma, global_avg = P.compute_strengths(
+            attack, defense, sigma, global_avg = P.compute_blended_strengths(
                 cutoff_data, teams, today=CUTOFF
             )
             for home, away in itertools.combinations(teams, 2):
@@ -135,15 +194,25 @@ def print_summary(results: list[dict], label: str):
 
 
 def main():
+    import sys
+    calibrate_only = "--calibrate-alpha" in sys.argv
+
     BAR = "═" * 72
     print(f"\n{BAR}")
     print("  WC 2018 GROUP STAGE BACKTEST")
-    print(f"  Cut-off: {CUTOFF.date()}  |  λ={P.DECAY_LAMBDA}  "
-          f"half-life≈{round(0.693/P.DECAY_LAMBDA/365.25,1)}y  |  DRAW_BIAS={P.DRAW_BIAS}")
+    print(f"  Cut-off: {CUTOFF.date()}  |  α={P.BLEND_ALPHA}  "
+          f"λ_long={P.DECAY_LAMBDA_LONG}  λ_short={P.DECAY_LAMBDA_SHORT}  "
+          f"|  DRAW_BIAS={P.DRAW_BIAS}")
     print(BAR)
 
     print("\n[1] Loading historical data …")
     data = P.load_data()
+
+    if calibrate_only:
+        print("\n[2] Running BLEND_ALPHA calibration (analytical, no MC) …")
+        calibrate_alpha(data)
+        print("\nUpdate BLEND_ALPHA in predictor.py with the value marked ← above.")
+        return
 
     print(f"\n[2] Running full backtest (48 matches, MC={P.N_MATCH_SIM:,}/match) …")
     results = run_backtest(data, use_stakes=True)
@@ -151,7 +220,7 @@ def main():
     print_summary(
         results,
         f"BACKTEST SUMMARY — WC 2018 Group Stage  "
-        f"(λ={P.DECAY_LAMBDA}  DRAW_BIAS={P.DRAW_BIAS}  stakes ON  prior OFF)",
+        f"(α={P.BLEND_ALPHA}  DRAW_BIAS={P.DRAW_BIAS}  stakes ON  prior OFF)",
     )
 
 

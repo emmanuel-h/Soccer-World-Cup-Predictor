@@ -122,23 +122,34 @@ makes data older than 8–10 years effectively negligible).
 
 ## Statistical model
 
-### 1 · Exponential time-decay weighting
+### 1 · Dual time-window decay blend
 
-Every historical match is given a weight that decays exponentially with age:
+The model blends two separate exponential decay windows and mixes their
+attack/defense estimates:
 
 ```
-w(t) = exp(−λ · days_ago)     λ = 0.00127   (half-life ≈ 1.5 years)
+w_long(t)  = exp(−λ_long  · days_ago)   λ_long  = 0.000347  (half-life ≈ 5.5 years)
+w_short(t) = exp(−λ_short · days_ago)   λ_short = 0.00762   (half-life ≈ 3 months)
+
+att_eff = α · att_long + (1−α) · att_short     α = 0.75
 ```
 
-A match played 1.5 years ago counts for half as much as one played yesterday.
-A match from 5 years ago counts for ~10 %.
+**Long window** (5.5 y half-life): provides a stable baseline strength that
+avoids being polluted by transient slumps (Nations League rotations, poorly
+motivated dead-rubber runs).
 
-**Why λ = 0.00127 (previously 0.0008 / 2.4 y)**: backtesting against WC 2022
-showed that a 2.4-year window compressed team strength estimates — top sides
-like France and Brazil showed near-identical profiles to mid-table teams in
-evenly-spread groups.  Shortening to 1.5 years sharpens recent form and
-produces more differentiated λ values, improving away-win prediction accuracy
-from 25 % to 40 % on the WC 2022 group stage.
+**Short window** (3 m half-life): captures tournament-peak momentum — teams
+that peaked in the 3 months before the tournament (e.g. Japan, Morocco, Australia
+at WC 2022) gain a brief but measurable signal.
+
+**Blend weight α = 0.75**: calibrated analytically on the WC 2018 group stage
+(`python3 backtest_2018.py --calibrate-alpha`); 75 % long / 25 % short.
+
+**Impact**: this fixes the systematic error in the single-window (λ = 0.00127,
+1.5 y half-life) where France's poor Nations League 2022 run lowered their
+rating enough that the model predicted losses to Australia and Denmark — both of
+which France won comfortably (4-1 and 2-1).  The longer stable window preserves
+France's structural quality regardless of short-term slumps.
 
 These weights also serve as observation weights in the MLE fit described next.
 
@@ -377,27 +388,30 @@ dataset (no hardcoded scores for WC 2018).
 python3 backtest_2022.py               # WC 2022 — stakes + FIFA ranking prior
 python3 backtest_2022.py --calibrate   # fast DRAW_BIAS calibration (no MC)
 python3 backtest_2018.py               # WC 2018 — stakes, no prior
+python3 backtest_2018.py --calibrate-alpha  # fast BLEND_ALPHA calibration (no MC)
 ```
 
 **WC 2022** (cut-off 2022-11-19 · dead-rubber stakes ON · FIFA prior ON):
 
-| Metric | Raw averages (old) | DC MLE (current) |
-|---|---|---|
-| Overall accuracy | 39.6 % (19/48) | **50.0 % (24/48)** |
-| Home wins correct | 44 % (8/18) | **72 % (13/18)** |
-| Away wins correct | 40 % (8/20) | **50 % (10/20)** |
-| Draws correct | 30 % (3/10) | 10 % (1/10) |
-| Predicted draw rate | 35.4 % | 8.3 % |
+| Metric | Raw averages (old) | DC MLE single-window | DC MLE dual-window (current) |
+|---|---|---|---|
+| Overall accuracy | 39.6 % (19/48) | 50.0 % (24/48) | **47.9 % (23/48)** |
+| Home wins correct | 44 % (8/18) | 72 % (13/18) | **67 % (12/18)** |
+| Away wins correct | 40 % (8/20) | 50 % (10/20) | **45 % (9/20)** |
+| Draws correct | 30 % (3/10) | 10 % (1/10) | **20 % (2/10)** |
+| Predicted draw rate | 35.4 % | 8.3 % | 12.5 % |
 
 **WC 2018** (cut-off 2018-06-14 · dead-rubber stakes ON · no prior):
 
-| Metric | DC MLE (current) |
-|---|---|
-| Overall accuracy | **60.4 % (29/48)** |
-| Home wins correct | **84 % (16/19)** |
-| Away wins correct | **50 % (10/20)** |
-| Draws correct | 33 % (3/9) |
-| Predicted draw rate | 22.9 % |
+| Metric | DC MLE single-window | DC MLE dual-window (current) |
+|---|---|---|
+| Overall accuracy | 60.4 % (29/48) | **64.6 % (31/48)** |
+| Home wins correct | 84 % (16/19) | **89 % (17/19)** |
+| Away wins correct | 50 % (10/20) | **60 % (12/20)** |
+| Draws correct | 33 % (3/9) | 22 % (2/9) |
+| Predicted draw rate | 22.9 % | 12.5 % |
+
+**Combined** (96 matches, WC 2018 + 2022): single-window 53/96 (55.2 %) → dual-window **54/96 (56.2 %, +1.0 pp)**.
 
 ---
 

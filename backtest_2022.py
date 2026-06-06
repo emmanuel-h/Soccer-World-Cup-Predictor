@@ -210,7 +210,7 @@ def calibrate_draw_bias(
     P.WC2026_HOSTS = set()
     try:
         for teams in WC2022_GROUPS.values():
-            attack, defense, sigma, global_avg = P.compute_strengths(
+            attack, defense, sigma, global_avg = P.compute_blended_strengths(
                 cutoff_data, teams, today=CUTOFF
             )
             for home, away in itertools.combinations(teams, 2):
@@ -319,7 +319,7 @@ def run_backtest(
     try:
         for group_name, teams in WC2022_GROUPS.items():
             print(f"\n  Group {group_name}: {', '.join(teams)}")
-            attack, defense, sigma, global_avg = P.compute_strengths(
+            attack, defense, sigma, global_avg = P.compute_blended_strengths(
                 cutoff_data, teams, today=CUTOFF
             )
             if use_prior:
@@ -432,8 +432,9 @@ def main():
     BAR = "═" * 72
     print(f"\n{BAR}")
     print("  WC 2022 GROUP STAGE BACKTEST")
-    print(f"  Cut-off: {CUTOFF.date()}  |  λ={P.DECAY_LAMBDA}  "
-          f"half-life≈{round(0.693/P.DECAY_LAMBDA/365.25, 1)}y  |  DRAW_BIAS={P.DRAW_BIAS}")
+    print(f"  Cut-off: {CUTOFF.date()}  |  α={P.BLEND_ALPHA}  "
+          f"λ_long={P.DECAY_LAMBDA_LONG}  λ_short={P.DECAY_LAMBDA_SHORT}  "
+          f"|  DRAW_BIAS={P.DRAW_BIAS}")
     print(BAR)
 
     print("\n[1] Loading historical data …")
@@ -458,7 +459,7 @@ def main():
     print_summary(
         results,
         f"BACKTEST SUMMARY — WC 2022 Group Stage  "
-        f"(λ={P.DECAY_LAMBDA}  DRAW_BIAS={P.DRAW_BIAS}  stakes+prior=ON)",
+        f"(α={P.BLEND_ALPHA}  DRAW_BIAS={P.DRAW_BIAS}  stakes+prior=ON)",
     )
 
 
