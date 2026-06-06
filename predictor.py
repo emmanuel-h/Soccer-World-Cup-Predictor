@@ -49,18 +49,6 @@ DC_RHO    = -0.25
 # so a positive bias is needed to recover the historical draw frequency.
 DRAW_BIAS = 0.050
 
-# Draw classifier: logistic regression trained on competitive international matches.
-# Features: [intercept, |lam_h−lam_a|/(lam_h+lam_a), P_draw_dc]
-# DRAW_CLF_THRESHOLD is the logistic score above which a draw is predicted.
-# It is calibrated to recover the ~21.9 % historical WC group-stage draw rate.
-DRAW_CLF_THRESHOLD = 0.40   # default; overridden at runtime by fit_draw_classifier
-
-# Minimum tournament weight to include a match in classifier training.
-# ≥ 1.2 keeps WC qualifying, continental championships, and World Cup matches.
-# Friendlies (0.5) and Nations League (0.8) are excluded.
-_DRAW_CLF_MIN_TW = 1.2
-_DRAW_CLF_YEARS  = 8   # training window relative to `today`
-
 # Tournament-type multipliers applied on top of time-decay.
 # Competitive matches (WC, continental championships) are stronger signals than
 # friendlies or Nations League (often rotated squads, low stakes).
@@ -306,98 +294,6 @@ def h2h_stats(data: list[dict], t1: str, t2: str, today: Optional[datetime] = No
     return len(matches), w1, len(matches) - w1 - w2, w2
 
 
-# ── Draw classifier (logistic regression) ─────────────────────────────────────
-
-def _sigmoid(x: float) -> float:
-    return 1.0 / (1.0 + math.exp(-max(-500.0, min(500.0, x))))
-
-
-def _fit_logistic(
-    X: list[list[float]], y: list[float],
-    lr: float = 0.05, n_iter: int = 2000,
-) -> list[float]:
-    """Gradient-descent logistic regression. Returns [β0, β1, ...]."""
-    n, k = len(X), len(X[0])
-    beta = [0.0] * k
-    for _ in range(n_iter):
-        grad = [0.0] * k
-        for i in range(n):
-            yhat = _sigmoid(sum(beta[j] * X[i][j] for j in range(k)))
-            err = yhat - y[i]
-            for j in range(k):
-                grad[j] += err * X[i][j]
-        for j in range(k):
-            beta[j] -= lr * grad[j] / n
-    return beta
-
-
-def fit_draw_classifier(
-    data: list[dict],
-    today: Optional[datetime] = None,
-    target_draw_rate: float = 0.15,
-) -> tuple[list[float], float]:
-    """
-    Train a logistic P(draw) classifier on recent competitive international
-    matches (WC, continental championships, WC qualification).
-
-    Training uses the MLE strengths computed at `today` — so features are
-    consistent with the model's current ratings.  Pass today=CUTOFF in
-    backtests to avoid using post-cutoff data.
-
-    Features: [intercept, |lam_h−lam_a|/(lam_h+lam_a), P_draw_dc]
-    Returns:  (coefficients, threshold)
-
-    target_draw_rate controls the calibration: the threshold is set so that
-    exactly this fraction of training matches are predicted as draws.  Lower
-    values require higher classifier confidence (fewer, more precise draws).
-    Calibrated against WC 2018 and WC 2022 backtests: 0.15 yields threshold
-    ≈ 0.27 which maintains overall accuracy while improving draw detection.
-    """
-    today = today or datetime.now()
-    cutoff = today - timedelta(days=_DRAW_CLF_YEARS * 365.25)
-
-    train_matches = [
-        r for r in data
-        if r["date"] >= cutoff and r["date"] < today
-        and _tournament_weight(r.get("tournament", "")) >= _DRAW_CLF_MIN_TW
-    ]
-    if len(train_matches) < 30:
-        return ([0.0, -5.0, 5.0], 0.40)
-
-    teams = list({t for r in train_matches for t in (r["home_team"], r["away_team"])})
-    attack, defense, _, mu = compute_strengths(data, teams, today=today)
-
-    X: list[list[float]] = []
-    y: list[float] = []
-    for r in train_matches:
-        ht, at = r["home_team"], r["away_team"]
-        lh = max(0.3, min(attack.get(ht, 1.0) * defense.get(at, 1.0) * mu, 7.0))
-        la = max(0.3, min(attack.get(at, 1.0) * defense.get(ht, 1.0) * mu, 7.0))
-        _, p_d, _ = probs_from_grid(build_dc_grid(lh, la))
-        X.append([1.0, abs(lh - la) / (lh + la), p_d])
-        y.append(1.0 if r["home_score"] == r["away_score"] else 0.0)
-
-    coeffs = _fit_logistic(X, y)
-
-    # Calibrate threshold: rank training matches by P(draw) and pick the
-    # percentile corresponding to target_draw_rate.
-    target_n = round(len(X) * target_draw_rate)
-    scores = sorted(
-        (_sigmoid(sum(c * xi for c, xi in zip(coeffs, x))) for x in X),
-        reverse=True,
-    )
-    threshold = scores[target_n] if target_n < len(scores) else 0.40
-    return coeffs, threshold
-
-
-def draw_clf_prob(
-    lam_h: float, lam_a: float, p_draw_dc: float, coeffs: list[float]
-) -> float:
-    """Logistic P(draw) from the trained classifier."""
-    return _sigmoid(coeffs[0] + coeffs[1] * abs(lam_h - lam_a) / (lam_h + lam_a)
-                    + coeffs[2] * p_draw_dc)
-
-
 # ── Per-match prediction ───────────────────────────────────────────────────────
 
 def _host_multipliers(home: str, away: str) -> tuple[float, float]:
@@ -430,8 +326,6 @@ def predict(
     today: Optional[datetime] = None,
     stake_home: float = 1.0,
     stake_away: float = 1.0,
-    draw_coeffs: Optional[list[float]] = None,
-    draw_threshold: float = DRAW_CLF_THRESHOLD,
 ) -> dict:
     """
     Two-track: analytical DC grid for outcome/probabilities; MC for scoreline distribution.
@@ -441,9 +335,6 @@ def predict(
     fixtures (squad rotation, low motivation) — e.g. stake_home=0.80 if the home side
     has already qualified and is expected to field a rotated XI.  Both lambdas are scaled
     so the game is modelled as lower-intensity; probabilities flatten toward a draw.
-
-    draw_coeffs: trained logistic classifier coefficients from fit_draw_classifier().
-    draw_threshold: P(draw) threshold returned by fit_draw_classifier().
     """
     # Build effective attack dict with stake factors applied
     eff_attack = dict(attack)
@@ -474,14 +365,7 @@ def predict(
 
     top5 = sorted(scorelines.items(), key=lambda x: -x[1])[:5]
 
-    # Outcome decision:
-    # 1. Logistic draw classifier (primary): predicts draw when P_clf(draw) ≥ threshold.
-    # 2. DRAW_BIAS fallback (secondary): for close matches not caught by the classifier.
-    clf_p = draw_clf_prob(lam_h, lam_a, p_d, draw_coeffs) if draw_coeffs else None
-
-    if clf_p is not None and clf_p >= draw_threshold:
-        outcome, result = "draw", "DRAW"
-    elif p_h >= p_a and p_h >= p_d + DRAW_BIAS:
+    if p_h >= p_a and p_h >= p_d + DRAW_BIAS:
         outcome, result = "home", f"{home} WIN"
     elif p_a >= p_h and p_a >= p_d + DRAW_BIAS:
         outcome, result = "away", f"{away} WIN"
@@ -496,7 +380,6 @@ def predict(
         "dc_score": dc_score,
         "definitive_score": definitive_score,
         "p_home": p_h, "p_draw": p_d, "p_away": p_a,
-        "clf_p_draw": clf_p,
         "result": result,
         "top5": top5,
         "h2h": h2h_stats(data, home, away, today),
@@ -590,8 +473,6 @@ def print_match(p: dict, label: str):
     print(f"  Most-likely score  : {hg} – {ag}  (DC analytical, unconstrained)")
     print(f"  DC probability     : {h} {_pct(p['p_home'])}  │"
           f"  Draw {_pct(p['p_draw'])}  │  {a} {_pct(p['p_away'])}")
-    if p.get("clf_p_draw") is not None:
-        print(f"  Classifier P(draw) : {_pct(p['clf_p_draw'])}")
     print(f"  ► Prediction       : {p['result']}  →  {dhg} – {dag}")
 
     print(f"  Top scorelines     : ", end="")
@@ -840,13 +721,10 @@ def _run_match_predictions(
     data: list[dict],
     attack: dict, defense: dict, sigma: dict, global_avg: float,
     fixtures: list[tuple],
-    draw_coeffs: Optional[list[float]] = None,
-    draw_threshold: float = DRAW_CLF_THRESHOLD,
 ) -> list[dict]:
     predictions = []
     for home, away, label in fixtures:
-        p = predict(data, attack, defense, sigma, global_avg, home, away,
-                    draw_coeffs=draw_coeffs, draw_threshold=draw_threshold)
+        p = predict(data, attack, defense, sigma, global_avg, home, away)
         predictions.append(p)
         print_match(p, label)
     return predictions
@@ -884,30 +762,22 @@ def main():
     print(f"  {', '.join(teams)}")
     print(BAR)
 
-    print("\n[1/5] Loading historical data …")
+    print("\n[1/4] Loading historical data …")
     data = load_data()
 
-    print("\n[2/5] Training draw classifier (logistic regression, competitive matches) …")
-    draw_coeffs, draw_threshold = fit_draw_classifier(data)
-    print(f"  β = [{', '.join(f'{b:.3f}' for b in draw_coeffs)}]"
-          f"   threshold = {draw_threshold:.3f}")
-
-    print("\n[3/5] Computing opponent-adjusted strengths (Dixon-Coles MLE) …")
+    print("\n[2/4] Computing opponent-adjusted strengths (Dixon-Coles MLE) …")
     attack, defense, sigma, global_avg = compute_strengths(data, teams)
     print(f"  Global avg goals / team / match : {global_avg:.3f}")
     _display_strengths(teams, attack, defense, sigma)
 
-    print(f"\n[4/5] Predicting matches  (Bayesian MC, {N_MATCH_SIM:,} runs / match) …")
+    print(f"\n[3/4] Predicting matches  (Bayesian MC, {N_MATCH_SIM:,} runs / match) …")
     print(f"\n{BAR}")
     print("  MATCH PREDICTIONS")
     print(BAR)
-    predictions = _run_match_predictions(
-        data, attack, defense, sigma, global_avg, fixtures,
-        draw_coeffs=draw_coeffs, draw_threshold=draw_threshold,
-    )
+    predictions = _run_match_predictions(data, attack, defense, sigma, global_avg, fixtures)
     _write_prediction_outputs(output_paths, group_label, predictions)
 
-    print(f"\n[5/5] Simulating group advancement  ({N_GROUP_SIM:,} full-group runs) …")
+    print(f"\n[4/4] Simulating group advancement  ({N_GROUP_SIM:,} full-group runs) …")
     adv_pct = group_advancement_mc(attack, defense, sigma, global_avg, fixtures, teams)
     ordered, pts, wins, drws, loss, gf, ga = deterministic_standings(predictions, teams)
 

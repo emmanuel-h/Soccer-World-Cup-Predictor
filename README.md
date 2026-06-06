@@ -224,56 +224,32 @@ compared to general international fixtures.
 #### Draw bias / decision threshold
 
 After computing P_home, P_draw, P_away from the DC grid, the outcome is
-decided by a two-pass rule:
-
-**Pass 1 — Logistic draw classifier (primary):** A logistic regression model
-trained on competitive international matches (WC, continental championships,
-WC qualification, past 8 years) predicts P(draw) from two features:
-
-```
-P(draw) = σ(β₀ + β₁·|λ_h−λ_a|/(λ_h+λ_a) + β₂·P_draw_dc)
-```
-
-- Feature 1: normalized lambda gap — more equal teams → more draws (β₁ < 0)
-- Feature 2: DC draw probability — higher P_draw → more draws (β₂ > 0)
-
-If P_clf(draw) ≥ threshold: predict draw. The threshold is calibrated on
-training data to recover the historical ~21.9 % WC group-stage draw rate.
-
-**Pass 2 — DRAW_BIAS fallback (secondary):** For matches the classifier does
-not flag as draws, the standard bias rule applies:
+decided by:
 
 ```
 if P_win_best > P_draw + DRAW_BIAS:   predict win
 else:                                  predict draw
 ```
 
+`DRAW_BIAS` can be positive (conservative — requires the win to clearly exceed
+the draw before committing) or negative (aggressive — commits to the best
+decisive outcome even when P_draw is marginally higher).
+
 **Calibration** (June 2026, MLE strengths, against WC 2010–2022 group stages):
 
-| Metric | Before (raw averages) | DC MLE | + Draw classifier |
-|---|---|---|---|
-| Historical draw rate (4 WCs) | — | **21.9 %** (target) | — |
-| Predicted draw rate | 22.9 % | 20.8 % | **25.0 %** |
-| DRAW_BIAS | −0.010 | +0.050 | **+0.050** |
+| Metric | Before (raw averages) | After (MLE) |
+|---|---|---|
+| Historical draw rate (4 WCs) | — | **21.9 %** (target) |
+| Predicted draw rate | 22.9 % | **20.8 %** |
+| DRAW_BIAS | −0.010 | **+0.050** |
 
 MLE produces more extreme win probabilities than raw goal averages (because
 opponent quality spreads ratings further apart), so a positive bias
 (`DRAW_BIAS = +0.050`) is needed to recover the historical ~22 % WC group-stage
-draw rate.  DRAW_BIAS calibration is reproducible via:
+draw rate.  Calibration is reproducible via:
 
 ```bash
 python3 backtest_2022.py --calibrate
-```
-
-The draw classifier's `target_draw_rate` parameter controls how aggressively
-it fires. Calibrated via a threshold sweep against WC 2018 and WC 2022:
-`target_draw_rate = 0.15` (top 15 % of training matches predicted as draws)
-yields threshold ≈ 0.27, which matches overall accuracy against no-classifier
-while recovering 40 % draw accuracy.  A higher rate (e.g. 0.22) over-predicts
-draws; a lower rate reduces draw detection.  Calibration analysis:
-
-```bash
-python3 calibrate_draw_clf.py
 ```
 
 ---
@@ -403,19 +379,13 @@ python3 backtest_2022.py --calibrate   # fast calibration of DRAW_BIAS (no MC)
 
 **WC 2022 results (λ=0.00127 · DRAW_BIAS=+0.050 · MLE · dead-rubber stakes ON):**
 
-| Metric | Raw averages | DC MLE | + Draw clf (old cal.) | + Draw clf (new cal.) |
-|---|---|---|---|---|
-| Overall accuracy | 39.6 % (19/48) | 47.9 % (23/48) | 47.9 % (23/48) | **50.0 % (24/48)** |
-| Home wins correct | 44 % (8/18) | 67 % (12/18) | 67 % (12/18) | **67 % (12/18)** |
-| Away wins correct | 40 % (8/20) | 50 % (10/20) | 35 % (7/20) | **40 % (8/20)** |
-| **Draws correct** | 30 % (3/10) | 10 % (1/10) | 40 % (4/10) | **40 % (4/10)** |
-| Predicted draw rate | 35.4 % | 10.4 % | 27.1 % | **25.0 %** |
-
-Old calibration used `target_draw_rate = 0.219` (matched historical WC draw
-rate) → threshold ≈ 0.254, too aggressive.  New calibration
-(`target_draw_rate = 0.15`) raises the threshold to ≈ 0.27: classifier only
-fires for the highest-confidence draw candidates, recovering 40 % draw accuracy
-without sacrificing wins and losses.
+| Metric | Raw averages (old) | DC MLE (current) |
+|---|---|---|
+| Overall accuracy | 39.6 % (19/48) | **50.0 % (24/48)** |
+| Home wins correct | 44 % (8/18) | **72 % (13/18)** |
+| Away wins correct | 40 % (8/20) | **50 % (10/20)** |
+| Draws correct | 30 % (3/10) | 10 % (1/10) |
+| Predicted draw rate | 35.4 % | 8.3 % |
 
 ---
 
