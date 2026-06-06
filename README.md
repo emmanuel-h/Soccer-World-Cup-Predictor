@@ -369,15 +369,17 @@ python3 -m unittest test_predictor -v
 
 ## Backtesting
 
-`backtest_2022.py` validates the predictor against actual WC 2022 group stage
-results using only pre-tournament data (cut-off: 2022-11-19).
+Two WC group stages are used as benchmarks.  Both scripts use only
+pre-tournament data for predictions and read actual results from the live
+dataset (no hardcoded scores for WC 2018).
 
 ```bash
-python3 backtest_2022.py               # full backtest with dead-rubber stakes
-python3 backtest_2022.py --calibrate   # fast calibration of DRAW_BIAS (no MC)
+python3 backtest_2022.py               # WC 2022 — stakes + FIFA ranking prior
+python3 backtest_2022.py --calibrate   # fast DRAW_BIAS calibration (no MC)
+python3 backtest_2018.py               # WC 2018 — stakes, no prior
 ```
 
-**WC 2022 results (λ=0.00127 · DRAW_BIAS=+0.050 · MLE · dead-rubber stakes ON):**
+**WC 2022** (cut-off 2022-11-19 · dead-rubber stakes ON · FIFA prior ON):
 
 | Metric | Raw averages (old) | DC MLE (current) |
 |---|---|---|
@@ -386,6 +388,16 @@ python3 backtest_2022.py --calibrate   # fast calibration of DRAW_BIAS (no MC)
 | Away wins correct | 40 % (8/20) | **50 % (10/20)** |
 | Draws correct | 30 % (3/10) | 10 % (1/10) |
 | Predicted draw rate | 35.4 % | 8.3 % |
+
+**WC 2018** (cut-off 2018-06-14 · dead-rubber stakes ON · no prior):
+
+| Metric | DC MLE (current) |
+|---|---|
+| Overall accuracy | **60.4 % (29/48)** |
+| Home wins correct | **84 % (16/19)** |
+| Away wins correct | **50 % (10/20)** |
+| Draws correct | 33 % (3/9) |
+| Predicted draw rate | 22.9 % |
 
 ---
 
