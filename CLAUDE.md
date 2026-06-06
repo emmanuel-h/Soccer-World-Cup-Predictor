@@ -60,7 +60,9 @@ All prediction logic lives in a single file: `predictor.py`. Everything else cal
 
 **Layer 5 — Draw bias threshold** (`predict`): outcome is decided by `P_win_best > P_draw + DRAW_BIAS`. `DRAW_BIAS=+0.050` is calibrated to reproduce the ~22% historical WC group-stage draw rate. Calibration is reproducible via `backtest_2022.py --calibrate`.
 
-**Layer 6 — Bayesian uncertainty / MC** (`predict`, `group_advancement_mc`): per-team `sigma` scales with `1/√(n_eff/REF_N_EFF)` where `n_eff = Σ decay_weights`. At prediction time, attack/defense are perturbed log-normally before sampling Poisson goals.
+**Layer 6 — FIFA ranking prior** (`apply_fifa_prior`): after MLE fitting, attack/defense are shrunk toward a linear prior derived from FIFA rankings: `effective = (n_eff·data + n_prior·prior) / (n_eff + n_prior)`. `FIFA_N_PRIOR=4.0` pseudo-matches. Minimal effect on data-rich teams (large n_eff); corrects debutants and sparse qualifiers (Canada, Qatar). Applied via `FIFA_RANKS_2026` in production and tournament-specific dicts in backtests.
+
+**Layer 7 — Bayesian uncertainty / MC** (`predict`, `group_advancement_mc`): per-team `sigma` scales with `1/√(n_eff/REF_N_EFF)` where `n_eff = Σ decay_weights`. At prediction time, attack/defense are perturbed log-normally before sampling Poisson goals.
 
 ### Key constants in `predictor.py`
 
@@ -73,6 +75,8 @@ All prediction logic lives in a single file: `predictor.py`. Everything else cal
 | `DRAW_BIAS` | +0.050 | Win/draw decision threshold |
 | `BASE_SIGMA` | 0.25 | Uncertainty at `REF_N_EFF=40` effective matches |
 | `TOURNAMENT_WEIGHTS` | dict | Per-tournament match importance multiplier |
+| `FIFA_N_PRIOR` | 4.0 | Pseudo-match count for FIFA ranking prior |
+| `FIFA_RANKS_2026` | dict | Current FIFA rankings for WC 2026 teams |
 | `N_MATCH_SIM` | 30 000 | MC runs per match (scoreline %) |
 | `N_GROUP_SIM` | 25 000 | MC runs for Adv% |
 

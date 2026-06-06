@@ -80,6 +80,43 @@ WC2026_HOSTS   = {"Mexico", "Canada", "United States"}
 N_MATCH_SIM = 30_000  # MC runs per match  (win/draw/loss + scoreline %)
 N_GROUP_SIM = 25_000  # MC runs for group advancement probabilities
 
+# ── FIFA ranking prior ─────────────────────────────────────────────────────────
+#
+# Bayesian shrinkage: after MLE fitting, team attack/defense estimates are
+# pulled toward a structural prior derived from FIFA rankings.  This regularises
+# teams with sparse or noisy recent data (debutants, rare WC qualifiers).
+# n_prior = pseudo-match count; higher → stronger pull from the ranking prior.
+
+FIFA_N_PRIOR = 4.0   # pseudo-match weight of the FIFA ranking prior
+
+# FIFA rankings for WC 2026 teams (~April 2026 release).
+FIFA_RANKS_2026: dict[str, int] = {
+    "Argentina":              1,  "France":              2,
+    "Spain":                  3,  "England":             4,
+    "Brazil":                 5,  "Portugal":            6,
+    "Belgium":                7,  "Netherlands":         8,
+    "Germany":                9,  "Uruguay":            10,
+    "Colombia":              11,  "Japan":              12,
+    "Croatia":               13,  "Morocco":            14,
+    "Switzerland":           15,  "United States":      16,
+    "Mexico":                17,  "Senegal":            18,
+    "South Korea":           22,  "Turkey":             23,
+    "Ecuador":               24,  "Norway":             25,
+    "Austria":               26,  "Australia":          27,
+    "Ivory Coast":           29,  "Sweden":             31,
+    "Tunisia":               32,  "Iran":               35,
+    "Ghana":                 39,  "Canada":             41,
+    "Scotland":              44,  "Czech Republic":     45,
+    "Algeria":               49,  "Bosnia and Herzegovina": 53,
+    "Panama":                51,  "DR Congo":           56,
+    "Saudi Arabia":          59,  "Paraguay":           60,
+    "Qatar":                 61,  "South Africa":       65,
+    "Haiti":                 67,  "Iraq":               68,
+    "Cape Verde":            71,  "Uzbekistan":         73,
+    "Jordan":                85,  "Curaçao":            96,
+    "New Zealand":           98,
+}
+
 # ── Poisson primitives ─────────────────────────────────────────────────────────
 
 _FACTORIALS = [math.factorial(k) for k in range(25)]
@@ -161,6 +198,41 @@ def most_likely_score_for_outcome(grid: dict, outcome: str) -> tuple[int, int]:
     else:
         filtered = {k: v for k, v in grid.items() if k[0] < k[1]}
     return max(filtered, key=filtered.__getitem__) if filtered else most_likely_score(grid)
+
+
+# ── FIFA ranking prior functions ───────────────────────────────────────────────
+
+def _rank_to_strength(rank: int) -> float:
+    """Linear FIFA-rank → strength multiplier (1.18 at rank 1, floor 0.72 below rank ~78)."""
+    return max(0.72, 1.18 - 0.006 * (rank - 1))
+
+
+def apply_fifa_prior(
+    teams: list[str],
+    attack: dict[str, float],
+    defense: dict[str, float],
+    sigma: dict[str, float],
+    rankings: dict[str, int],
+    n_prior: float = FIFA_N_PRIOR,
+) -> None:
+    """
+    Bayesian shrinkage of attack/defense toward a FIFA-rank-derived prior (in-place).
+
+    Teams with few effective matches (high sigma) are pulled harder toward the prior;
+    data-rich teams (low sigma) are barely affected.  Teams absent from `rankings`
+    are left unchanged.
+    """
+    for team in teams:
+        rank = rankings.get(team)
+        if rank is None:
+            continue
+        prior_att = _rank_to_strength(rank)
+        prior_def = 2.0 - prior_att        # strong attack ↔ weak conceding defense
+        n_eff     = (BASE_SIGMA / sigma[team]) ** 2 * REF_N_EFF
+        w_data    = n_eff / (n_eff + n_prior)
+        w_prior   = n_prior / (n_eff + n_prior)
+        attack[team]  = w_data * attack[team]  + w_prior * prior_att
+        defense[team] = w_data * defense[team] + w_prior * prior_def
 
 
 # ── Data loading ───────────────────────────────────────────────────────────────
@@ -805,8 +877,9 @@ def main():
     print("\n[1/4] Loading historical data …")
     data = load_data()
 
-    print("\n[2/4] Computing opponent-adjusted strengths (dual-window blend) …")
+    print("\n[2/4] Computing opponent-adjusted strengths (dual-window blend + FIFA prior) …")
     attack, defense, sigma, global_avg = compute_blended_strengths(data, teams)
+    apply_fifa_prior(teams, attack, defense, sigma, FIFA_RANKS_2026)
     print(f"  Global avg goals / team / match : {global_avg:.3f}")
     _display_strengths(teams, attack, defense, sigma)
 

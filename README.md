@@ -387,7 +387,7 @@ dataset (no hardcoded scores for WC 2018).
 ```bash
 python3 backtest_2022.py               # WC 2022 — stakes + FIFA ranking prior
 python3 backtest_2022.py --calibrate   # fast DRAW_BIAS calibration (no MC)
-python3 backtest_2018.py               # WC 2018 — stakes, no prior
+python3 backtest_2018.py               # WC 2018 — stakes + FIFA ranking prior
 python3 backtest_2018.py --calibrate-alpha  # fast BLEND_ALPHA calibration (no MC)
 ```
 
@@ -401,17 +401,17 @@ python3 backtest_2018.py --calibrate-alpha  # fast BLEND_ALPHA calibration (no M
 | Draws correct | 30 % (3/10) | 10 % (1/10) | **20 % (2/10)** |
 | Predicted draw rate | 35.4 % | 8.3 % | 12.5 % |
 
-**WC 2018** (cut-off 2018-06-14 · dead-rubber stakes ON · no prior):
+**WC 2018** (cut-off 2018-06-14 · dead-rubber stakes ON · FIFA prior ON):
 
 | Metric | DC MLE single-window | DC MLE dual-window (current) |
 |---|---|---|
-| Overall accuracy | 60.4 % (29/48) | **64.6 % (31/48)** |
+| Overall accuracy | 60.4 % (29/48) | **66.7 % (32/48)** |
 | Home wins correct | 84 % (16/19) | **89 % (17/19)** |
-| Away wins correct | 50 % (10/20) | **60 % (12/20)** |
+| Away wins correct | 50 % (10/20) | **65 % (13/20)** |
 | Draws correct | 33 % (3/9) | 22 % (2/9) |
-| Predicted draw rate | 22.9 % | 12.5 % |
+| Predicted draw rate | 22.9 % | 8.3 % |
 
-**Combined** (96 matches, WC 2018 + 2022): single-window 53/96 (55.2 %) → dual-window **54/96 (56.2 %, +1.0 pp)**.
+**Combined** (96 matches, WC 2018 + 2022): single-window 53/96 (55.2 %) → dual-window + FIFA prior **55/96 (57.3 %, +2.1 pp)**.
 
 ---
 

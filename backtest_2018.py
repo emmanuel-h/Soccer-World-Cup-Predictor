@@ -40,6 +40,25 @@ WC2018_STAKES: dict[tuple, tuple] = {
 WC2018_START = datetime(2018, 6, 14)
 WC2018_END   = datetime(2018, 6, 28)
 
+# ── FIFA ranking prior for WC 2018 ────────────────────────────────────────────
+#
+# June 7, 2018 FIFA rankings for WC 2018 group-stage teams.  Applied via
+# P.apply_fifa_prior() to regularise sparse/noisy team estimates.
+
+FIFA_RANKS_2018: dict[str, int] = {
+    "Germany":      1,  "Brazil":        2,  "Belgium":      3,
+    "Portugal":     4,  "Argentina":     5,  "Switzerland":  6,
+    "France":       7,  "Poland":        8,  "Croatia":     10,
+    "Spain":       10,  "Peru":         11,  "Denmark":     12,
+    "England":     13,  "Colombia":     16,  "Mexico":      15,
+    "Uruguay":     17,  "Iceland":      22,  "Costa Rica":  21,
+    "Sweden":      25,  "Senegal":      27,  "Tunisia":     28,
+    "Morocco":     42,  "Iran":         36,  "Serbia":      38,
+    "Australia":   43,  "Nigeria":      48,  "Japan":       61,
+    "South Korea": 57,  "Panama":       55,  "Egypt":       45,
+    "Saudi Arabia":67,  "Russia":       70,
+}
+
 
 def _lookup_result(data, team1, team2):
     for r in data:
@@ -119,7 +138,7 @@ def calibrate_alpha(data: list[dict]) -> float:
     return best_alpha
 
 
-def run_backtest(data: list[dict], use_stakes: bool = True) -> list[dict]:
+def run_backtest(data: list[dict], use_stakes: bool = True, use_prior: bool = True) -> list[dict]:
     cutoff_data = [r for r in data if r["date"] < CUTOFF]
     results = []
 
@@ -131,6 +150,8 @@ def run_backtest(data: list[dict], use_stakes: bool = True) -> list[dict]:
             attack, defense, sigma, global_avg = P.compute_blended_strengths(
                 cutoff_data, teams, today=CUTOFF
             )
+            if use_prior:
+                P.apply_fifa_prior(teams, attack, defense, sigma, FIFA_RANKS_2018)
             for home, away in itertools.combinations(teams, 2):
                 actual, score = _lookup_result(data, home, away)
                 if actual is None:
@@ -220,7 +241,7 @@ def main():
     print_summary(
         results,
         f"BACKTEST SUMMARY — WC 2018 Group Stage  "
-        f"(α={P.BLEND_ALPHA}  DRAW_BIAS={P.DRAW_BIAS}  stakes ON  prior OFF)",
+        f"(α={P.BLEND_ALPHA}  DRAW_BIAS={P.DRAW_BIAS}  stakes+prior=ON)",
     )
 
 

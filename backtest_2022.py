@@ -116,11 +116,10 @@ WC2022_STAKES = {
     ("Portugal", "South Korea"):  (0.75, 1.00),
 }
 
-# ── FIFA ranking prior (Fix 4) ────────────────────────────────────────────────
+# ── FIFA ranking prior for WC 2022 ────────────────────────────────────────────
 #
-# Nov 2022 FIFA rankings for all WC 2022 group-stage teams, used as a Bayesian
-# prior to regularise data-driven ratings toward structural team quality.
-# Helps teams with sparse / noisy recent data (Canada, Qatar, Saudi Arabia).
+# Nov 2022 FIFA rankings for WC 2022 group-stage teams.  Applied via
+# P.apply_fifa_prior() which lives in predictor.py.
 
 FIFA_RANKS_2022: dict[str, int] = {
     "Brazil": 1, "Belgium": 2, "Argentina": 3, "France": 4, "England": 5,
@@ -131,33 +130,6 @@ FIFA_RANKS_2022: dict[str, int] = {
     "Tunisia": 30, "Iran": 20, "Wales": 19, "Ecuador": 44, "Qatar": 50,
     "Serbia": 21, "Cameroon": 43, "Costa Rica": 31, "Saudi Arabia": 53,
 }
-
-FIFA_N_PRIOR = 4.0  # pseudo-match weight of the FIFA prior
-
-
-def _rank_to_strength(rank: int) -> float:
-    """Linear FIFA-rank → attack-strength prior (1.18 for rank 1, 0.72 floor)."""
-    return max(0.72, 1.18 - 0.006 * (rank - 1))
-
-
-def _apply_fifa_prior(
-    teams: list[str],
-    attack: dict[str, float],
-    defense: dict[str, float],
-    sigma: dict[str, float],
-) -> None:
-    """Bayesian shrinkage of attack/defense toward FIFA-ranking prior (in-place)."""
-    for team in teams:
-        rank = FIFA_RANKS_2022.get(team)
-        if rank is None:
-            continue
-        prior_att = _rank_to_strength(rank)
-        prior_def = 2.0 - prior_att   # strong team → low conceding → small defense value
-        n_eff     = (P.BASE_SIGMA / sigma[team]) ** 2 * P.REF_N_EFF
-        w_data    = n_eff / (n_eff + FIFA_N_PRIOR)
-        w_prior   = FIFA_N_PRIOR / (n_eff + FIFA_N_PRIOR)
-        attack[team]  = w_data * attack[team]  + w_prior * prior_att
-        defense[team] = w_data * defense[team] + w_prior * prior_def
 
 
 # ── Historical WC group-stage draw rates ──────────────────────────────────────
@@ -323,7 +295,7 @@ def run_backtest(
                 cutoff_data, teams, today=CUTOFF
             )
             if use_prior:
-                _apply_fifa_prior(teams, attack, defense, sigma)
+                P.apply_fifa_prior(teams, attack, defense, sigma, FIFA_RANKS_2022)
             for home, away in itertools.combinations(teams, 2):
                 sh, sa = (WC2022_STAKES.get((home, away), (1.0, 1.0))
                           if use_stakes else (1.0, 1.0))
