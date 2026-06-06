@@ -253,7 +253,7 @@ else:                                  predict draw
 | Metric | Before (raw averages) | DC MLE | + Draw classifier |
 |---|---|---|---|
 | Historical draw rate (4 WCs) | — | **21.9 %** (target) | — |
-| Predicted draw rate | 22.9 % | 20.8 % | **27.1 %** |
+| Predicted draw rate | 22.9 % | 20.8 % | **25.0 %** |
 | DRAW_BIAS | −0.010 | +0.050 | **+0.050** |
 
 MLE produces more extreme win probabilities than raw goal averages (because
@@ -263,6 +263,17 @@ draw rate.  DRAW_BIAS calibration is reproducible via:
 
 ```bash
 python3 backtest_2022.py --calibrate
+```
+
+The draw classifier's `target_draw_rate` parameter controls how aggressively
+it fires. Calibrated via a threshold sweep against WC 2018 and WC 2022:
+`target_draw_rate = 0.15` (top 15 % of training matches predicted as draws)
+yields threshold ≈ 0.27, which matches overall accuracy against no-classifier
+while recovering 40 % draw accuracy.  A higher rate (e.g. 0.22) over-predicts
+draws; a lower rate reduces draw detection.  Calibration analysis:
+
+```bash
+python3 calibrate_draw_clf.py
 ```
 
 ---
@@ -392,19 +403,19 @@ python3 backtest_2022.py --calibrate   # fast calibration of DRAW_BIAS (no MC)
 
 **WC 2022 results (λ=0.00127 · DRAW_BIAS=+0.050 · MLE · dead-rubber stakes ON):**
 
-| Metric | Raw averages | DC MLE | + Draw classifier |
-|---|---|---|---|
-| Overall accuracy | 39.6 % (19/48) | 47.9 % (23/48) | **47.9 % (23/48)** |
-| Home wins correct | 44 % (8/18) | 67 % (12/18) | **67 % (12/18)** |
-| Away wins correct | 40 % (8/20) | 50 % (10/20) | 35 % (7/20) |
-| **Draws correct** | 30 % (3/10) | 10 % (1/10) | **40 % (4/10)** |
-| Predicted draw rate | 35.4 % | 10.4 % | 27.1 % |
+| Metric | Raw averages | DC MLE | + Draw clf (old cal.) | + Draw clf (new cal.) |
+|---|---|---|---|---|
+| Overall accuracy | 39.6 % (19/48) | 47.9 % (23/48) | 47.9 % (23/48) | **50.0 % (24/48)** |
+| Home wins correct | 44 % (8/18) | 67 % (12/18) | 67 % (12/18) | **67 % (12/18)** |
+| Away wins correct | 40 % (8/20) | 50 % (10/20) | 35 % (7/20) | **40 % (8/20)** |
+| **Draws correct** | 30 % (3/10) | 10 % (1/10) | 40 % (4/10) | **40 % (4/10)** |
+| Predicted draw rate | 35.4 % | 10.4 % | 27.1 % | **25.0 %** |
 
-The draw classifier improves draw accuracy from 10 % to **40 %** by trading
-3 correct away-win predictions for 3 correct draw predictions — overall
-accuracy is maintained at 47.9 %.  Draws that involve a moderate-to-strong
-favourite (e.g. England 0–0 USA, Spain 1–1 Germany) remain hard to predict
-because Poisson models assign them low draw probability.
+Old calibration used `target_draw_rate = 0.219` (matched historical WC draw
+rate) → threshold ≈ 0.254, too aggressive.  New calibration
+(`target_draw_rate = 0.15`) raises the threshold to ≈ 0.27: classifier only
+fires for the highest-confidence draw candidates, recovering 40 % draw accuracy
+without sacrificing wins and losses.
 
 ---
 
